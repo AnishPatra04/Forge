@@ -5,15 +5,15 @@ import {
   Activity,
   Settings2,
   Plus,
-  Layers,
   Sparkles,
   Terminal,
   ExternalLink,
   ChevronRight,
+  Folder,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 
-export function Sidebar() {
+export function Sidebar({ isCollapsed = false, onToggle: _onToggle }) {
   const {
     activeTab,
     setActiveTab,
@@ -29,7 +29,7 @@ export function Sidebar() {
       id: 'workspace',
       label: 'Workspace',
       icon: LayoutDashboard,
-      badge: files.length > 0 ? `${files.length} files` : null,
+      badge: files.length > 0 ? `${files.length}` : null,
       desc: 'Active code exploration',
     },
     {
@@ -56,47 +56,57 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-[#090b10] border-r border-slate-800/80 flex flex-col justify-between select-none h-screen shrink-0">
-      {/* Brand & Logo */}
+    <aside
+      className={`bg-sidebar border-r border-sidebar-border flex flex-col justify-between select-none h-screen shrink-0 transition-all duration-200 ease-in-out ${
+        isCollapsed ? 'w-16' : 'w-64'
+      }`}
+    >
+      {/* Top Header / Brand Logo */}
       <div>
-        <div className="p-5 border-b border-slate-800/60 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* Original Geometric FORGE Logo */}
-            <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-700 p-0.5 shadow-md shadow-indigo-950/40 flex items-center justify-center">
+        <div
+          className={`h-14 border-b border-sidebar-border flex items-center ${
+            isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
+          }`}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Preserved Geometric FORGE Logo Mark */}
+            <div className="relative w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-700 p-0.5 shadow-md shadow-indigo-950/40 flex items-center justify-center shrink-0">
               <svg
                 viewBox="0 0 24 24"
-                className="w-5 h-5 text-white"
+                className="w-4 h-4 text-white"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                {/* Geometrical forged faceted prism */}
                 <polygon points="12 2 21 8 12 14 3 8" fill="rgba(255,255,255,0.2)" stroke="currentColor" />
                 <polygon points="12 14 21 8 21 16 12 22" fill="rgba(255,255,255,0.05)" stroke="currentColor" />
                 <polygon points="12 14 3 8 3 16 12 22" fill="rgba(255,255,255,0.12)" stroke="currentColor" />
               </svg>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-base tracking-wider text-slate-100 font-mono">
+
+            {!isCollapsed && (
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-bold text-sm tracking-wider text-sidebar-foreground font-mono truncate">
                   FORGE
                 </span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                  MVP
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-sidebar-accent text-primary border border-sidebar-border">
+                  v0.1.0
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 leading-tight">Codebase Assistant</p>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Navigation Section */}
-        <div className="p-3">
-          <p className="px-3 pt-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 font-mono">
-            Navigation
-          </p>
+        {/* Main Navigation Section */}
+        <div className="p-2 space-y-1">
+          {!isCollapsed && (
+            <p className="px-3 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 font-mono">
+              Platform
+            </p>
+          )}
+
           <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -105,30 +115,39 @@ export function Sidebar() {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 group ${
+                  title={isCollapsed ? `${item.label} (${item.desc})` : undefined}
+                  className={`w-full flex items-center rounded-lg text-xs font-medium transition-all duration-150 cursor-pointer group relative ${
+                    isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3 py-2'
+                  } ${
                     isActive
-                      ? 'bg-indigo-600/15 text-indigo-300 border border-indigo-500/30 shadow-sm shadow-indigo-950/20'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+                      ? 'bg-primary/15 text-primary border border-primary/25 shadow-xs font-semibold'
+                      : 'text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/70 border border-transparent'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'}`}>
                     <Icon
-                      className={`w-4 h-4 transition-colors ${
-                        isActive ? 'text-indigo-400' : 'text-slate-400 group-hover:text-slate-300'
+                      className={`w-4 h-4 transition-colors shrink-0 ${
+                        isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-sidebar-foreground'
                       }`}
                     />
-                    <span>{item.label}</span>
+                    {!isCollapsed && <span>{item.label}</span>}
                   </div>
-                  {item.badge && (
+
+                  {!isCollapsed && item.badge && (
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-medium ${
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-medium transition-colors ${
                         isActive
-                          ? 'bg-indigo-500/25 text-indigo-200'
-                          : 'bg-slate-800 text-slate-400 group-hover:text-slate-300'
+                          ? 'bg-primary/25 text-primary border border-primary/30'
+                          : 'bg-sidebar-accent text-muted-foreground border border-sidebar-border group-hover:text-sidebar-foreground'
                       }`}
                     >
                       {item.badge}
                     </span>
+                  )}
+
+                  {/* Small badge dot in collapsed view */}
+                  {isCollapsed && item.badge && (
+                    <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary" />
                   )}
                 </button>
               );
@@ -136,77 +155,120 @@ export function Sidebar() {
           </nav>
         </div>
 
-        {/* Recent Projects Section */}
-        <div className="p-3 pt-1">
-          <div className="flex items-center justify-between px-3 pb-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 font-mono">
-              Active Project
-            </span>
-            <button
-              onClick={() => openPlaceholder('Multi-Project Switching & Git Sync', 'Milestone 2')}
-              className="text-slate-400 hover:text-slate-300 p-0.5 rounded transition-colors"
-              title="Add or link another repository"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="px-3 py-2.5 rounded-lg bg-slate-900/60 border border-slate-800/70">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              <span className="text-xs font-medium text-slate-200 truncate" title={projectName}>
-                {projectName}
-              </span>
+        {/* Active Project Section */}
+        <div className="p-2 pt-2">
+          {!isCollapsed ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between px-3 pb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 font-mono">
+                  Active Project
+                </span>
+                <button
+                  onClick={() => openPlaceholder('Multi-Project Switching & Git Sync', 'Milestone 2')}
+                  className="text-muted-foreground hover:text-sidebar-foreground p-0.5 rounded hover:bg-sidebar-accent transition-colors cursor-pointer"
+                  title="Add or link another repository"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="p-3 rounded-xl bg-sidebar-accent/40 border border-sidebar-border hover:border-sidebar-border/80 transition-all">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  <span className="text-xs font-medium text-sidebar-foreground truncate" title={projectName}>
+                    {projectName}
+                  </span>
+                </div>
+
+                <div className="mt-2.5 pt-2 border-t border-sidebar-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span className="font-mono">{files.length} file{files.length === 1 ? '' : 's'}</span>
+                  <button
+                    onClick={() => setActiveTab('workspace')}
+                    className="text-primary hover:text-primary/80 flex items-center gap-0.5 font-medium transition-colors cursor-pointer"
+                  >
+                    <span>Inspect</span>
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
+              {files.length === 0 && (
+                <button
+                  onClick={loadSampleProject}
+                  className="w-full mt-2 py-1.5 px-2.5 rounded-lg text-xs font-medium bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  <span>Load Sample Codebase</span>
+                </button>
+              )}
             </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-              <span>{files.length} source file{files.length === 1 ? '' : 's'}</span>
+          ) : (
+            <div className="flex flex-col items-center pt-2">
               <button
                 onClick={() => setActiveTab('workspace')}
-                className="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5"
+                className="p-2.5 rounded-lg text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent border border-sidebar-border/40 relative cursor-pointer"
+                title={`Active: ${projectName} (${files.length} files)`}
               >
-                Inspect <ChevronRight className="w-3 h-3" />
+                <Folder className="w-4 h-4 text-primary" />
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500" />
               </button>
             </div>
-          </div>
-
-          {files.length === 0 && (
-            <button
-              onClick={loadSampleProject}
-              className="w-full mt-2.5 py-1.5 px-2.5 rounded text-xs font-medium bg-slate-800/50 hover:bg-slate-800 text-indigo-300 border border-slate-700/60 hover:border-indigo-500/40 flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              Load Sample Codebase
-            </button>
           )}
         </div>
       </div>
 
-      {/* Footer / Status Area */}
-      <div className="p-3 border-t border-slate-800/60 space-y-2">
-        <div className="px-3 py-2 rounded-lg bg-slate-900/40 border border-slate-800/50">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-slate-400 flex items-center gap-1.5">
-              <Terminal className="w-3.5 h-3.5 text-slate-400" />
-              Status
-            </span>
-            <span className="text-emerald-400 font-mono text-[10px]">Client Ready</span>
-          </div>
-          <p className="text-[10px] text-slate-400 mt-1 leading-normal">
-            Local Ingestion & Keyword Search Engine
-          </p>
-        </div>
+      {/* Footer / System Status Area */}
+      <div className="p-2 border-t border-sidebar-border space-y-2">
+        {!isCollapsed ? (
+          <>
+            <div className="p-2.5 rounded-xl bg-sidebar-accent/30 border border-sidebar-border">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground flex items-center gap-1.5 font-medium">
+                  <Terminal className="w-3.5 h-3.5 text-primary" />
+                  Status
+                </span>
+                <span className="text-emerald-400 font-mono text-[10px] bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                  Client Ready
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground/80 mt-1.5 leading-normal font-mono">
+                Local Parser & Keyword Engine
+              </p>
+            </div>
 
-        <div className="flex items-center justify-between px-2 pt-1 text-[11px] text-slate-400 font-mono">
-          <span>v0.1.0-alpha</span>
-          <a
-            href="https://github.com/AnishPatra04/Forge"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 hover:text-indigo-400 transition-colors"
-          >
-            <span>GitHub</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
+            <div className="flex items-center justify-between px-2 pt-1 text-[11px] text-muted-foreground font-mono">
+              <span className="opacity-75">v0.1.0-alpha</span>
+              <a
+                href="https://github.com/AnishPatra04/Forge"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+              >
+                <span>GitHub</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-2 py-1">
+            <span
+              className="w-2.5 h-2.5 rounded-full bg-emerald-500"
+              title="Client Ready - Local Ingestion Engine"
+            />
+            <a
+              href="https://github.com/AnishPatra04/Forge"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-primary transition-colors p-1"
+              title="GitHub Repository"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        )}
       </div>
     </aside>
   );
