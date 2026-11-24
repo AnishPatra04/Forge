@@ -5,6 +5,7 @@ import {
   extractAstMetadata,
   calculateStructuralMetrics,
   performAstAwareSearch,
+  resolveFileDependencies,
 } from '../utils/astParser';
 
 const WorkspaceContext = createContext(null);
@@ -83,7 +84,8 @@ export function WorkspaceProvider({ children }) {
         // Prevent exact duplicates by filename
         const existingNames = new Set(prev.map((f) => f.name));
         const filteredNew = validFiles.filter((f) => !existingNames.has(f.name));
-        return [...prev, ...filteredNew];
+        const combined = [...prev, ...filteredNew];
+        return resolveFileDependencies(combined);
       });
 
       addActivity(
@@ -107,7 +109,8 @@ export function WorkspaceProvider({ children }) {
       ...sample,
       astMetadata: extractAstMetadata(sample.content, sample.name),
     }));
-    setFiles(sampleFilesWithAst);
+    const resolvedSamples = resolveFileDependencies(sampleFilesWithAst);
+    setFiles(resolvedSamples);
     setProjectName('Forge Core Engine (Sample)');
     addActivity(
       'import',
@@ -122,7 +125,8 @@ export function WorkspaceProvider({ children }) {
       if (target) {
         addActivity('remove', 'File Removed', `Removed ${target.name} from current workspace.`);
       }
-      return prev.filter((f) => f.id !== fileId);
+      const remaining = prev.filter((f) => f.id !== fileId);
+      return resolveFileDependencies(remaining);
     });
 
     if (selectedFile?.id === fileId) {

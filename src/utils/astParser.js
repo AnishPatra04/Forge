@@ -531,3 +531,239 @@ export function performAstAwareSearch(filesList = [], query = '') {
   return { results, grandTotalMatches };
 }
 
+/**
+ * Resolves a relative import path against the importer's directory.
+ *
+ * @param {string} importerDir - Directory of the importing file (e.g. 'src/components')
+ * @param {string} source - Relative import path (e.g. '../context/WorkspaceContext')
+ * @returns {string} Normalized target path
+ */
+export function resolveRelativePath(importerDir = '', source = '') {
+  const normalizedSource = source.replace(/\\/g, '/');
+  const baseParts = importerDir ? importerDir.split('/').filter(Boolean) : [];
+  const sourceParts = normalizedSource.split('/').filter(Boolean);
+
+  for (const part of sourceParts) {
+    if (part === '.') {
+      continue;
+    } else if (part === '..') {
+      if (baseParts.length > 0) {
+        baseParts.pop();
+      }
+    } else {
+      baseParts.push(part);
+    }
+  }
+
+  return baseParts.join('/');
+}
+
+/**
+ * Resolves file-to-file dependencies from import declarations for JS, JSX, TS, and TSX files.
+ * Resolves relative imports against uploaded filenames, including common extensions and index files.
+ * Stores dependency metadata on each file (resolved and unresolved imports).
+ *
+ * @param {Array} filesList - Array of file objects
+ * @returns {Array} Array of file objects with attached `dependencies` metadata
+ */
+export function resolveFileDependencies(filesList = []) {
+  if (!Array.isArray(filesList) || filesList.length === 0) {
+    return filesList || [];
+  }
+
+  const COMMON_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx', '.json', '.css', '.mjs', '.cjs'];
+  const INDEX_EXTENSIONS = ['/index.js', '/index.jsx', '/index.ts', '/index.tsx', '/index.json'];
+
+  // Lookup structures for fast path resolution
+  const fileByExactPath = new Map();
+  const fileByBasename = new Map();
+
+  filesList.forEach((f) => {
+    if (!f || !f.name) return;
+    const norm = f.name.replace(/\\/g, '/');
+    fileByExactPath.set(norm, f);
+    fileByExactPath.set(norm.toLowerCase(), f);
+
+    const base = norm.split('/').pop();
+    if (base) {
+      if (!fileByBasename.has(base)) fileByBasename.set(base, []);
+      fileByBasename.get(base).push(f);
+
+      const baseLower = base.toLowerCase();
+      if (!fileByBasename.has(baseLower)) fileByBasename.set(baseLower, []);
+      fileByBasename.get(baseLower).push(f);
+    }
+  });
+
+  function findTargetFile(targetPath) {
+    if (!targetPath) return null;
+
+    // 1. Exact match
+    if (fileByExactPath.has(targetPath)) return fileByExactPath.get(targetPath);
+    if (fileByExactPath.has(targetPath.toLowerCase())) return fileByExactPath.get(targetPath.toLowerCase());
+
+    // 2. Try common extensions
+    for (const ext of COMMON_EXTENSIONS) {
+      const candidate = targetPath + ext;
+      if (fileByExactPath.has(candidate)) return fileByExactPath.get(candidate);
+      if (fileByExactPath.has(candidate.toLowerCase())) return fileByExactPath.get(candidate.toLowerCase());
+    }
+
+    // 3. Try index files
+    for (const idxExt of INDEX_EXTENSIONS) {
+      const candidate = targetPath + idxExt;
+      if (fileByExactPath.has(candidate)) return fileByExactPath.get(candidate);
+      if (fileByExactPath.has(candidate.toLowerCase())) return fileByExactPath.get(candidate.toLowerCase());
+    }
+
+    // 4. Fallback: match by basename if targetPath has subdirectories but uploaded files are stored flat
+    const targetBasename = targetPath.split('/').pop();
+    if (targetBasename) {
+      if (fileByBasename.has(targetBasename)) return fileByBasename.get(targetBasename)[0];
+      if (fileByBasename.has(targetBasename.toLowerCase())) return fileByBasename.get(targetBasename.toLowerCase())[0];
+
+      for (const ext of COMMON_EXTENSIONS) {
+        const candidate = targetBasename + ext;
+        if (fileByBasename.has(candidate)) return fileByBasename.get(candidate)[0];
+        if (fileByBasename.has(candidate.toLowerCase())) return fileByBasename.get(candidate.toLowerCase())[0];
+      }
+    }
+
+    return null;
+  }
+
+  // Reverse dependencies tracking (targetFileId -> array of { fileId, fileName, line })
+  const reverseDepsMap = new Map();
+
+  const filesWithDeps = filesList.map((file) => {
+    if (!file || !file.astMetadata || file.astMetadata.error) {
+      const emptyDeps = {
+        resolved: [],
+        unresolved: [],
+        importedBy: [],
+        totalResolved: 0,
+        totalUnresolved: 0,
+      };
+      return {
+        ...file,
+        dependencies: emptyDeps,
+        astMetadata: file.astMetadata
+          ? { ...file.astMetadata, dependencies: emptyDeps }
+          : null,
+      };
+    }
+
+    // Group raw imports by source + line to avoid duplicate dependency entries
+    const rawImports = file.astMetadata.imports || [];
+    const groupedImports = new Map();
+
+    rawImports.forEach((imp) => {
+      if (!imp || !imp.source) return;
+      const key = `${imp.source}:${imp.line}`;
+      if (!groupedImports.has(key)) {
+        groupedImports.set(key, {
+          source: imp.source,
+          line: imp.line,
+          specifiers: [],
+        });
+      }
+      if (imp.name && !groupedImports.get(key).specifiers.includes(imp.name)) {
+        groupedImports.get(key).specifiers.push(imp.name);
+      }
+    });
+
+    const normImporter = file.name.replace(/\\/g, '/');
+    const importerDir = normImporter.includes('/')
+      ? normImporter.substring(0, normImporter.lastIndexOf('/'))
+      : '';
+
+    const resolved = [];
+    const unresolved = [];
+
+    groupedImports.forEach((impDecl) => {
+      const source = impDecl.source;
+      const isRelative =
+        source.startsWith('./') ||
+        source.startsWith('../') ||
+        source === '.' ||
+        source === '..';
+
+      if (!isRelative) {
+        unresolved.push({
+          source,
+          line: impDecl.line,
+          specifiers: impDecl.specifiers,
+          isRelative: false,
+          reason: 'External dependency',
+        });
+        return;
+      }
+
+      const targetPath = resolveRelativePath(importerDir, source);
+      const matchedTarget = findTargetFile(targetPath);
+
+      if (matchedTarget) {
+        const resolvedEntry = {
+          source,
+          resolvedFileId: matchedTarget.id,
+          resolvedFileName: matchedTarget.name,
+          line: impDecl.line,
+          specifiers: impDecl.specifiers,
+          isRelative: true,
+        };
+        resolved.push(resolvedEntry);
+
+        // Record reverse dependency
+        if (matchedTarget.id) {
+          if (!reverseDepsMap.has(matchedTarget.id)) {
+            reverseDepsMap.set(matchedTarget.id, []);
+          }
+          reverseDepsMap.get(matchedTarget.id).push({
+            fileId: file.id,
+            fileName: file.name,
+            line: impDecl.line,
+          });
+        }
+      } else {
+        unresolved.push({
+          source,
+          targetPath,
+          line: impDecl.line,
+          specifiers: impDecl.specifiers,
+          isRelative: true,
+          reason: 'File not found in workspace',
+        });
+      }
+    });
+
+    const depData = {
+      resolved,
+      unresolved,
+      importedBy: [],
+      totalResolved: resolved.length,
+      totalUnresolved: unresolved.length,
+    };
+
+    return {
+      ...file,
+      dependencies: depData,
+    };
+  });
+
+  // Attach reverse dependencies (importedBy) to each file
+  return filesWithDeps.map((file) => {
+    const importedBy = reverseDepsMap.get(file.id) || [];
+    const updatedDeps = {
+      ...file.dependencies,
+      importedBy,
+    };
+    return {
+      ...file,
+      dependencies: updatedDeps,
+      astMetadata: file.astMetadata
+        ? { ...file.astMetadata, dependencies: updatedDeps }
+        : null,
+    };
+  });
+}
+
