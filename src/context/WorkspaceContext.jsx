@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { isSupportedFile, getFileExtension } from '../constants/fileTypes';
 import { SAMPLE_PROJECT_FILES } from '../constants/sampleProject';
+import {
+  extractAstMetadata,
+  calculateStructuralMetrics,
+  performAstAwareSearch,
+} from '../utils/astParser';
 
 const WorkspaceContext = createContext(null);
 
@@ -53,6 +58,7 @@ export function WorkspaceProvider({ children }) {
         try {
           const content = await file.text();
           const lines = content.split('\n');
+          const astMetadata = extractAstMetadata(content, file.name);
           validFiles.push({
             id: 'file-' + Date.now() + '-' + i + '-' + Math.random().toString(36).slice(2, 6),
             name: file.name,
@@ -61,6 +67,7 @@ export function WorkspaceProvider({ children }) {
             lineCount: lines.length,
             content,
             lastModified: file.lastModified || Date.now(),
+            astMetadata,
           });
         } catch (err) {
           console.error(`Failed to read file ${file.name}:`, err);
@@ -96,7 +103,11 @@ export function WorkspaceProvider({ children }) {
   }, [addActivity]);
 
   const loadSampleProject = useCallback(() => {
-    setFiles(SAMPLE_PROJECT_FILES);
+    const sampleFilesWithAst = SAMPLE_PROJECT_FILES.map((sample) => ({
+      ...sample,
+      astMetadata: extractAstMetadata(sample.content, sample.name),
+    }));
+    setFiles(sampleFilesWithAst);
     setProjectName('Forge Core Engine (Sample)');
     addActivity(
       'import',
@@ -144,49 +155,7 @@ export function WorkspaceProvider({ children }) {
 
     setIsSearching(true);
 
-    // Tokenize query into search terms
-    const tokens = raw
-      .toLowerCase()
-      .split(/\s+/)
-      .filter((t) => t.length > 0);
-
-    const results = [];
-    let grandTotalMatches = 0;
-
-    files.forEach((file) => {
-      const lines = file.content.split('\n');
-      const fileMatches = [];
-
-      lines.forEach((lineText, idx) => {
-        const lowerLine = lineText.toLowerCase();
-        // Check if any token matches
-        const matchedTokens = tokens.filter((token) => lowerLine.includes(token));
-
-        if (matchedTokens.length > 0) {
-          fileMatches.push({
-            lineNumber: idx + 1,
-            lineContent: lineText,
-            matchedWords: matchedTokens,
-          });
-        }
-      });
-
-      if (fileMatches.length > 0) {
-        grandTotalMatches += fileMatches.length;
-        results.push({
-          fileId: file.id,
-          fileName: file.name,
-          fileExtension: file.extension,
-          fileSize: file.size,
-          lineCount: file.lineCount,
-          matches: fileMatches,
-          totalMatches: fileMatches.length,
-        });
-      }
-    });
-
-    // Rank by number of matches descending
-    results.sort((a, b) => b.totalMatches - a.totalMatches);
+    const { results, grandTotalMatches } = performAstAwareSearch(files, raw);
 
     setSearchResults(results);
     setIsSearching(false);
@@ -194,7 +163,7 @@ export function WorkspaceProvider({ children }) {
     addActivity(
       'search',
       `Searched "${raw}"`,
-      results.length > 0
+      results && results.length > 0
         ? `Found ${grandTotalMatches} match${grandTotalMatches === 1 ? '' : 'es'} across ${results.length} file${results.length === 1 ? '' : 's'}.`
         : `No matches found across ${files.length} loaded files.`
     );
@@ -224,6 +193,10 @@ export function WorkspaceProvider({ children }) {
     setPlaceholderModal(null);
   }, []);
 
+  const structuralMetrics = useMemo(() => {
+    return calculateStructuralMetrics(files);
+  }, [files]);
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -248,6 +221,12 @@ export function WorkspaceProvider({ children }) {
         placeholderModal,
         openPlaceholder,
         closePlaceholder,
+        structuralMetrics,
+        totalFunctions: structuralMetrics.totalFunctions,
+        totalClasses: structuralMetrics.totalClasses,
+        totalVariables: structuralMetrics.totalVariables,
+        totalImports: structuralMetrics.totalImports,
+        totalExports: structuralMetrics.totalExports,
       }}
     >
       {children}
