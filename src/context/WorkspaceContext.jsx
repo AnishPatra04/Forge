@@ -124,10 +124,11 @@ export function WorkspaceProvider({ children }) {
     if (validFiles.length > 0) {
       const wasEmpty = files.length === 0;
       setFiles((prev) => {
-        // Prevent exact duplicates by filename
-        const existingNames = new Set(prev.map((f) => f.name));
-        const filteredNew = validFiles.filter((f) => !existingNames.has(f.name));
-        return [...prev, ...filteredNew];
+        // Use normalized paths (file.path || file.name) for duplicate detection so files with
+        // identical basenames in different directories are not incorrectly discarded.
+        const existingPaths = new Set(prev.map((f) => f.path || f.name));
+        const filteredNew = validFiles.filter((f) => !existingPaths.has(f.path || f.name));
+        return resolveFileDependencies([...prev, ...filteredNew]);
       });
       if (wasEmpty) {
         setProjectSource({ type: 'local' });
@@ -175,7 +176,7 @@ export function WorkspaceProvider({ children }) {
       ...sample,
       astMetadata: extractAstMetadata(sample.content, sample.name),
     }));
-    setFiles(sampleFilesWithAst);
+    setFiles(resolveFileDependencies(sampleFilesWithAst));
     setProjectName('Forge Core Engine (Sample)');
     setProjectSource({ type: 'sample' });
     setLastImportSummary(null);
@@ -192,7 +193,8 @@ export function WorkspaceProvider({ children }) {
       if (target) {
         addActivity('remove', 'File Removed', `Removed ${target.name} from current workspace.`);
       }
-      return prev.filter((f) => f.id !== fileId);
+      const remaining = prev.filter((f) => f.id !== fileId);
+      return resolveFileDependencies(remaining);
     });
 
     if (selectedFile?.id === fileId) {
@@ -395,7 +397,7 @@ export function WorkspaceProvider({ children }) {
 
       // Atomic commit after download + parsing succeed
       if (replaceWorkspace) {
-        setFiles(stagedFiles);
+        setFiles(resolveFileDependencies(stagedFiles));
         setProjectName(`${owner}/${repo}`);
         setProjectSource({ type: 'github', owner, repo, branch: resolvedBranch, commitSha, repoUrl });
         setSelectedFile(null);
@@ -405,7 +407,7 @@ export function WorkspaceProvider({ children }) {
         setFiles((prev) => {
           const prevPaths = new Set(prev.map((f) => getFilePath(f)));
           const uniqueStaged = stagedFiles.filter((f) => !prevPaths.has(getFilePath(f)));
-          return [...prev, ...uniqueStaged];
+          return resolveFileDependencies([...prev, ...uniqueStaged]);
         });
       }
 

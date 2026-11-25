@@ -574,17 +574,23 @@ export function resolveFileDependencies(filesList = []) {
   const COMMON_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx', '.json', '.css', '.mjs', '.cjs'];
   const INDEX_EXTENSIONS = ['/index.js', '/index.jsx', '/index.ts', '/index.tsx', '/index.json'];
 
-  // Lookup structures for fast path resolution
+  // Lookup structures for fast path resolution.
+  // Phase 3E stores file.path (relative repo path like "src/components/Header.tsx")
+  // and file.name (basename like "Header.tsx"). We index by path so relative imports
+  // across subdirectories resolve correctly, with basename fallback for flat uploads.
   const fileByExactPath = new Map();
   const fileByBasename = new Map();
 
   filesList.forEach((f) => {
-    if (!f || !f.name) return;
-    const norm = f.name.replace(/\\/g, '/');
-    fileByExactPath.set(norm, f);
-    fileByExactPath.set(norm.toLowerCase(), f);
+    if (!f) return;
+    // Prefer file.path (relative path) over file.name (basename)
+    const filePath = (f.path || f.name || '').replace(/\\/g, '/');
+    if (!filePath) return;
 
-    const base = norm.split('/').pop();
+    fileByExactPath.set(filePath, f);
+    fileByExactPath.set(filePath.toLowerCase(), f);
+
+    const base = filePath.split('/').pop();
     if (base) {
       if (!fileByBasename.has(base)) fileByBasename.set(base, []);
       fileByBasename.get(base).push(f);
@@ -632,11 +638,12 @@ export function resolveFileDependencies(filesList = []) {
     return null;
   }
 
-  // Reverse dependencies tracking (targetFileId -> array of { fileId, fileName, line })
+  // Reverse dependencies tracking (targetFileId -> array of { fileId, fileName, filePath, line, specifiers })
   const reverseDepsMap = new Map();
 
   const filesWithDeps = filesList.map((file) => {
     if (!file || !file.astMetadata || file.astMetadata.error) {
+      // Plain object (not array) for consistency across all code paths
       const emptyDeps = {
         resolved: [],
         unresolved: [],
@@ -647,8 +654,11 @@ export function resolveFileDependencies(filesList = []) {
       return {
         ...file,
         dependencies: emptyDeps,
+        importedBy: [],
+        resolvedImports: [],
+        unresolvedImports: [],
         astMetadata: file.astMetadata
-          ? { ...file.astMetadata, dependencies: emptyDeps }
+          ? { ...file.astMetadata, dependencies: emptyDeps, importedBy: [] }
           : null,
       };
     }
@@ -672,7 +682,10 @@ export function resolveFileDependencies(filesList = []) {
       }
     });
 
-    const normImporter = file.name.replace(/\\/g, '/');
+    // Use file.path (relative repo path like "src/components/Header.tsx") for directory
+    // resolution so imports across subdirectories work correctly. Fall back to file.name
+    // for flat local uploads where path === name.
+    const normImporter = (file.path || file.name || '').replace(/\\/g, '/');
     const importerDir = normImporter.includes('/')
       ? normImporter.substring(0, normImporter.lastIndexOf('/'))
       : '';
@@ -693,8 +706,10 @@ export function resolveFileDependencies(filesList = []) {
           source,
           line: impDecl.line,
           specifiers: impDecl.specifiers,
+          type: 'external',
+          isExternal: true,
           isRelative: false,
-          reason: 'External dependency',
+          reason: 'External package',
         });
         return;
       }
@@ -707,6 +722,7 @@ export function resolveFileDependencies(filesList = []) {
           source,
           resolvedFileId: matchedTarget.id,
           resolvedFileName: matchedTarget.name,
+          resolvedFilePath: matchedTarget.path || matchedTarget.name,
           line: impDecl.line,
           specifiers: impDecl.specifiers,
           isRelative: true,
@@ -721,7 +737,9 @@ export function resolveFileDependencies(filesList = []) {
           reverseDepsMap.get(matchedTarget.id).push({
             fileId: file.id,
             fileName: file.name,
+            filePath: file.path || file.name,
             line: impDecl.line,
+            specifiers: impDecl.specifiers,
           });
         }
       } else {
@@ -730,38 +748,72 @@ export function resolveFileDependencies(filesList = []) {
           targetPath,
           line: impDecl.line,
           specifiers: impDecl.specifiers,
+          type: 'missing_relative',
+          isExternal: false,
           isRelative: true,
-          reason: 'File not found in workspace',
+          reason: 'Missing relative file',
         });
       }
     });
 
-    const depData = {
+    return {
+      ...file,
+      _rawResolved: resolved,
+      _rawUnresolved: unresolved,
+    };
+  });
+
+  // Attach dependencies & reverse dependencies (importedBy) to each file
+  return filesWithDeps.map((file) => {
+    const importedBy = reverseDepsMap.get(file.id) || [];
+
+    if (!file._rawResolved) {
+      // Non-AST or error files: build plain-object deps and attach final importedBy
+      const deps = {
+        resolved: [],
+        unresolved: [],
+        importedBy,
+        totalResolved: 0,
+        totalUnresolved: 0,
+      };
+      return {
+        ...file,
+        importedBy,
+        dependencies: deps,
+        astMetadata: file.astMetadata
+          ? { ...file.astMetadata, dependencies: deps, importedBy }
+          : null,
+      };
+    }
+
+    const resolved = file._rawResolved;
+    const unresolved = file._rawUnresolved;
+
+    // Plain-object dependencies structure (consistent with emptyDeps above)
+    const dependencies = {
       resolved,
       unresolved,
-      importedBy: [],
+      importedBy,
       totalResolved: resolved.length,
       totalUnresolved: unresolved.length,
     };
 
-    return {
-      ...file,
-      dependencies: depData,
-    };
-  });
+    const { _rawResolved, _rawUnresolved, ...cleanFile } = file;
 
-  // Attach reverse dependencies (importedBy) to each file
-  return filesWithDeps.map((file) => {
-    const importedBy = reverseDepsMap.get(file.id) || [];
-    const updatedDeps = {
-      ...file.dependencies,
-      importedBy,
-    };
     return {
-      ...file,
-      dependencies: updatedDeps,
-      astMetadata: file.astMetadata
-        ? { ...file.astMetadata, dependencies: updatedDeps }
+      ...cleanFile,
+      dependencies,
+      importedBy,
+      resolvedImports: resolved,
+      unresolvedImports: unresolved,
+      astMetadata: cleanFile.astMetadata
+        ? {
+            ...cleanFile.astMetadata,
+            dependencies,
+            importedBy,
+            resolvedImports: resolved,
+            unresolvedImports: unresolved,
+          }
         : null,
     };
   });
