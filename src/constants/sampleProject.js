@@ -2,6 +2,7 @@ export const SAMPLE_PROJECT_FILES = [
   {
     id: 'sample-auth-ts',
     name: 'authService.ts',
+    path: 'authService.ts',
     extension: '.ts',
     size: 2140,
     lineCount: 68,
@@ -75,6 +76,7 @@ export class AuthService {
   {
     id: 'sample-api-js',
     name: 'apiClient.js',
+    path: 'apiClient.js',
     extension: '.js',
     size: 1820,
     lineCount: 54,
@@ -124,6 +126,7 @@ export const CodebaseAPI = {
   {
     id: 'sample-db-py',
     name: 'database.py',
+    path: 'database.py',
     extension: '.py',
     size: 2450,
     lineCount: 65,
@@ -180,6 +183,7 @@ def ping_database() -> bool:
   {
     id: 'sample-config-json',
     name: 'forge.config.json',
+    path: 'forge.config.json',
     extension: '.json',
     size: 610,
     lineCount: 22,
@@ -206,6 +210,7 @@ def ping_database() -> bool:
   {
     id: 'sample-readme-md',
     name: 'README.md',
+    path: 'README.md',
     extension: '.md',
     size: 1420,
     lineCount: 42,

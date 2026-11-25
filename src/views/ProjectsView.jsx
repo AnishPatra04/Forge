@@ -21,7 +21,8 @@ export function ProjectsView() {
     files,
     setActiveTab,
     setSelectedFile,
-    openPlaceholder,
+    openGitHubModal,
+    projectSource,
   } = useWorkspace();
 
   const totalLines = files.reduce((acc, f) => acc + f.lineCount, 0);
@@ -34,6 +35,7 @@ export function ProjectsView() {
       version: '0.1.0',
       exportedAt: new Date().toISOString(),
       projectName,
+      source: projectSource,
       stats: {
         totalFiles: files.length,
         totalLines,
@@ -42,6 +44,7 @@ export function ProjectsView() {
       files: files.map((f) => ({
         id: f.id,
         name: f.name,
+        path: f.path || f.name,
         extension: f.extension,
         size: f.size,
         lineCount: f.lineCount,
@@ -92,11 +95,11 @@ export function ProjectsView() {
             </button>
 
             <button
-              onClick={() => openPlaceholder('Cloud Project Sync & Remote Git Clone', 'Milestone 2')}
+              onClick={openGitHubModal}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>New Remote Project</span>
+              <span>Import from GitHub</span>
             </button>
           </div>
         </div>
@@ -116,7 +119,12 @@ export function ProjectsView() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5 font-mono">
-                  Origin: Local In-Memory Workspace
+                  Origin:{' '}
+                  {projectSource?.type === 'github'
+                    ? `GitHub Public Repo (${projectSource.owner}/${projectSource.repo} • ${projectSource.branch})`
+                    : projectSource?.type === 'sample'
+                      ? 'Built-in Sample Reference Codebase'
+                      : 'Local In-Memory Workspace'}
                 </p>
               </div>
             </div>
@@ -155,15 +163,19 @@ export function ProjectsView() {
               <span className="text-slate-400 block text-[11px] font-mono uppercase mb-0.5">
                 Git Remote
               </span>
-              <a
-                href="https://github.com/AnishPatra04/Forge"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-indigo-400 hover:underline flex items-center gap-1 font-mono truncate"
-              >
-                <span>AnishPatra04/Forge</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
+              {projectSource?.type === 'github' ? (
+                <a
+                  href={projectSource.repoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-indigo-400 hover:underline flex items-center gap-1 font-mono truncate"
+                >
+                  <span>{projectSource.owner}/{projectSource.repo}</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              ) : (
+                <span className="text-xs text-slate-400 font-mono">Local session (no remote)</span>
+              )}
             </div>
           </div>
 
@@ -190,8 +202,11 @@ export function ProjectsView() {
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <FileCode className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="text-xs font-mono text-slate-200 truncate font-medium">
-                          {file.name}
+                        <span
+                          className="text-xs font-mono text-slate-200 truncate font-medium"
+                          title={file.path || file.name}
+                        >
+                          {file.path || file.name}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -220,18 +235,18 @@ export function ProjectsView() {
         <div className="p-5 rounded-xl bg-slate-900/40 border border-slate-800/70 text-xs text-slate-400 flex items-start justify-between gap-4">
           <div>
             <h3 className="text-sm font-semibold text-slate-200 mb-1">
-              Multi-Repository & Git Integration
+              Public GitHub Repository Ingestion
             </h3>
             <p className="leading-relaxed max-w-xl">
-              In Milestone 2, FORGE will support cloning private or public GitHub repositories
-              directly into your workspace via Git token authentication with full file tree navigation.
+              Import any public GitHub repository directly into your in-memory workspace with preserved
+              folder paths, branch selection, and client-side size/rate-limit safeguards.
             </p>
           </div>
           <button
-            onClick={() => openPlaceholder('Direct GitHub Repository Ingestion', 'Milestone 2')}
+            onClick={openGitHubModal}
             className="text-xs text-indigo-400 hover:text-indigo-300 font-mono underline shrink-0 mt-1"
           >
-            Learn more
+            Import Repository
           </button>
         </div>
       </div>

@@ -16,9 +16,52 @@ import {
   Filter,
   RefreshCw,
   FolderOpen,
+  FolderGit2,
+  ExternalLink,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { SUPPORTED_EXTENSIONS, EXTENSION_CONFIG, getFileExtension } from '../constants/fileTypes';
+
+function readFileFromEntry(fileEntry) {
+  return new Promise((resolve, reject) => {
+    fileEntry.file(resolve, reject);
+  });
+}
+
+function readAllDirectoryEntries(directoryReader) {
+  return new Promise((resolve, reject) => {
+    const entries = [];
+    const readBatch = () => {
+      directoryReader.readEntries(
+        (batch) => {
+          if (batch.length === 0) {
+            resolve(entries);
+            return;
+          }
+          entries.push(...batch);
+          readBatch();
+        },
+        reject
+      );
+    };
+    readBatch();
+  });
+}
+
+async function collectEntryFiles(entry) {
+  if (!entry) return [];
+  if (entry.isFile) {
+    const file = await readFileFromEntry(entry);
+    const cleanPath = (entry.fullPath || file.name).replace(/^\/+/, '');
+    return [{ file, path: cleanPath }];
+  }
+  if (entry.isDirectory) {
+    const entries = await readAllDirectoryEntries(entry.createReader());
+    const nested = await Promise.all(entries.map((child) => collectEntryFiles(child)));
+    return nested.flat();
+  }
+  return [];
+}
 
 export function WorkspaceView() {
   const {
@@ -34,6 +77,10 @@ export function WorkspaceView() {
     searchResults,
     isSearching,
     executeSearch,
+    openGitHubModal,
+    projectSource,
+    lastImportSummary,
+    dismissImportSummary,
   } = useWorkspace();
 
   const fileInputRef = useRef(null);
@@ -60,6 +107,24 @@ export function WorkspaceView() {
   const handleDrop = async (e) => {
     e.preventDefault();
     setDragActive(false);
+
+    const items = e.dataTransfer.items ? Array.from(e.dataTransfer.items) : [];
+    const entries = items
+      .map((item) => (typeof item.webkitGetAsEntry === 'function' ? item.webkitGetAsEntry() : null))
+      .filter(Boolean);
+
+    if (entries.length > 0) {
+      try {
+        const collected = (await Promise.all(entries.map((entry) => collectEntryFiles(entry)))).flat();
+        if (collected.length > 0) {
+          await importFiles(collected);
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to traverse dropped entries:', err);
+      }
+    }
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       await importFiles(Array.from(e.dataTransfer.files));
     }
@@ -140,6 +205,14 @@ export function WorkspaceView() {
                 <span>Import Files</span>
               </button>
 
+              <button
+                onClick={openGitHubModal}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 hover:border-indigo-500/40 transition-colors"
+              >
+                <FolderGit2 className="w-4 h-4 text-indigo-400" />
+                <span>Import GitHub</span>
+              </button>
+
               {files.length === 0 && (
                 <button
                   onClick={loadSampleProject}
@@ -184,6 +257,13 @@ export function WorkspaceView() {
                 >
                   <UploadCloud className="w-4 h-4" />
                   Choose Files from Computer
+                </button>
+                <button
+                  onClick={openGitHubModal}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                >
+                  <FolderGit2 className="w-4 h-4 text-indigo-400" />
+                  Import from GitHub
                 </button>
                 <button
                   onClick={loadSampleProject}
@@ -253,6 +333,36 @@ export function WorkspaceView() {
         ) : (
           /* Populated Workspace: Project Overview & Code Assistant */
           <div className="space-y-6">
+            {/* GitHub Import Warning / Summary Banner */}
+            {lastImportSummary &&
+              (lastImportSummary.stats?.failedCount > 0 ||
+                lastImportSummary.stats?.truncated ||
+                lastImportSummary.stats?.cappedCount > 0 ||
+                lastImportSummary.stats?.oversizedCount > 0 ||
+                lastImportSummary.duplicateCount > 0) && (
+                <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-800/50 text-xs text-amber-200 flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <p className="font-medium">
+                        GitHub Import Summary for <span className="font-mono">{lastImportSummary.repoLabel}</span> ({lastImportSummary.branch})
+                      </p>
+                      <p className="text-[11px] text-amber-300/90 font-mono">
+                        Loaded {lastImportSummary.addedCount} files
+                        {lastImportSummary.duplicateCount > 0 ? ` • ${lastImportSummary.duplicateCount} existing paths preserved` : ''}
+                        {lastImportSummary.stats?.failedCount > 0 ? ` • ${lastImportSummary.stats.failedCount} download(s) failed` : ''}
+                        {lastImportSummary.stats?.oversizedCount > 0 ? ` • ${lastImportSummary.stats.oversizedCount} oversized skipped` : ''}
+                        {lastImportSummary.stats?.cappedCount > 0 ? ` • ${lastImportSummary.stats.cappedCount} skipped by repo cap` : ''}
+                        {lastImportSummary.stats?.truncated ? ' • Repository tree was truncated by GitHub' : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={dismissImportSummary} className="text-amber-300 hover:text-amber-100 p-1">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
             {/* Project Overview Card */}
             <div className="p-6 rounded-xl bg-[#11131c] border border-slate-800/80 shadow-lg shadow-black/20">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-800">
@@ -301,6 +411,17 @@ export function WorkspaceView() {
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
+                      {projectSource?.type === 'github' && (
+                        <a
+                          href={projectSource.repoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors"
+                        >
+                          <span>{projectSource.branch}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>
@@ -316,7 +437,10 @@ export function WorkspaceView() {
                   </button>
 
                   <button
-                    onClick={clearAllFiles}
+                    onClick={() => {
+                      setLocalInputQuery('');
+                      clearAllFiles();
+                    }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-950/30 hover:bg-red-950/60 text-red-300 border border-red-900/50 transition-colors"
                     title="Remove all imported files"
                   >
@@ -422,8 +546,11 @@ export function WorkspaceView() {
                           >
                             <FileCode className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors shrink-0" />
                             <div className="min-w-0">
-                              <p className="text-xs font-mono text-slate-200 group-hover:text-white truncate font-medium">
-                                {file.name}
+                              <p
+                                className="text-xs font-mono text-slate-200 group-hover:text-white truncate font-medium"
+                                title={file.path || file.name}
+                              >
+                                {file.path || file.name}
                               </p>
                               <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
                                 <span>{file.lineCount} lines</span>
@@ -585,8 +712,11 @@ export function WorkspaceView() {
                                   <div className="px-3.5 py-2 bg-slate-900/60 border-b border-slate-800/80 flex items-center justify-between">
                                     <div className="flex items-center gap-2 min-w-0">
                                       <FileCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                                      <span className="text-xs font-mono font-medium text-slate-200 truncate">
-                                        {res.fileName}
+                                      <span
+                                        className="text-xs font-mono font-medium text-slate-200 truncate"
+                                        title={res.filePath || res.fileName}
+                                      >
+                                        {res.filePath || res.fileName}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-2">

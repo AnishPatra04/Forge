@@ -42,8 +42,11 @@ export function CodeViewerModal() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-slate-100 font-mono truncate">
-                  {selectedFile.name}
+                <h3
+                  className="text-sm font-semibold text-slate-100 font-mono truncate"
+                  title={selectedFile.path || selectedFile.name}
+                >
+                  {selectedFile.path || selectedFile.name}
                 </h3>
                 <span
                   className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded border ${badgeStyle.color}`}

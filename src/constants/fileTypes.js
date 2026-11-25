@@ -24,13 +24,39 @@ export const EXTENSION_CONFIG = {
   '.md': { label: 'Markdown', color: 'text-slate-300 border-slate-600/30 bg-slate-800/40' },
 };
 
-export const getFileExtension = (filename) => {
-  const lastDotIndex = filename.lastIndexOf('.');
-  if (lastDotIndex === -1) return '';
-  return filename.slice(lastDotIndex).toLowerCase();
+export const normalizeFilePath = (rawPath = '') => {
+  if (typeof rawPath !== 'string') return '';
+  return rawPath
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/\/{2,}/g, '/')
+    .replace(/^(\.\/|\/)+/, '');
 };
 
-export const isSupportedFile = (filename) => {
+export const getFileNameFromPath = (filePath = '') => {
+  const normalized = normalizeFilePath(filePath);
+  if (!normalized) return '';
+  const lastSlashIndex = normalized.lastIndexOf('/');
+  return lastSlashIndex === -1 ? normalized : normalized.slice(lastSlashIndex + 1);
+};
+
+export const getFilePath = (file) => {
+  if (!file) return '';
+  if (typeof file === 'string') return normalizeFilePath(file);
+  return normalizeFilePath(
+    file.path || file.relativePath || file.webkitRelativePath || file.name || ''
+  );
+};
+
+export const getFileExtension = (filename = '') => {
+  const baseName = getFileNameFromPath(filename);
+  if (!baseName) return '';
+  const lastDotIndex = baseName.lastIndexOf('.');
+  if (lastDotIndex <= 0) return '';
+  return baseName.slice(lastDotIndex).toLowerCase();
+};
+
+export const isSupportedFile = (filename = '') => {
   const ext = getFileExtension(filename);
   return SUPPORTED_EXTENSIONS.includes(ext);
 };
