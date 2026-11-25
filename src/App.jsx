@@ -8,6 +8,7 @@ import { ActivityView } from './views/ActivityView';
 import { SettingsView } from './views/SettingsView';
 import { CodeViewerModal } from './components/CodeViewerModal';
 import { PlaceholderModal } from './components/PlaceholderModal';
+import { GitHubImportModal } from './components/GitHubImportModal';
 
 function AppContent() {
   const { activeTab } = useWorkspace();
@@ -37,6 +38,7 @@ function AppContent() {
       {/* Global Modals */}
       <CodeViewerModal />
       <PlaceholderModal />
+      <GitHubImportModal />
     </div>
   );
 }

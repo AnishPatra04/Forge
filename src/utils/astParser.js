@@ -1,4 +1,5 @@
 import { parse } from '@babel/parser';
+import { getFileExtension, getFilePath } from '../constants/fileTypes.js';
 
 const AST_SUPPORTED_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx']);
 
@@ -9,10 +10,7 @@ const AST_SUPPORTED_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx']);
  */
 export function isAstSupported(filename) {
   if (!filename) return false;
-  const lastDot = filename.lastIndexOf('.');
-  if (lastDot === -1) return false;
-  const ext = filename.slice(lastDot).toLowerCase();
-  return AST_SUPPORTED_EXTENSIONS.has(ext);
+  return AST_SUPPORTED_EXTENSIONS.has(getFileExtension(filename));
 }
 
 /**
@@ -98,8 +96,7 @@ export function extractAstMetadata(content, filename) {
     return null;
   }
 
-  const lastDot = filename.lastIndexOf('.');
-  const ext = filename.slice(lastDot).toLowerCase();
+  const ext = getFileExtension(filename);
   const isTs = ext === '.ts' || ext === '.tsx';
 
   const functions = [];
@@ -322,7 +319,7 @@ export function calculateStructuralMetrics(filesList = []) {
     // Exclude files that have no AST metadata or have parse errors
     if (!file || !file.astMetadata || file.astMetadata.error) return;
 
-    const fileKey = file.id || file.name || 'file';
+    const fileKey = file.id || getFilePath(file) || 'file';
     const {
       functions = [],
       classes = [],
@@ -418,6 +415,7 @@ export function performAstAwareSearch(filesList = [], query = '') {
   filesList.forEach((file) => {
     if (!file || !file.content) return;
 
+    const filePath = getFilePath(file) || file.name || '';
     const lines = file.content.split('\n');
     const fileMatches = [];
 
@@ -502,6 +500,7 @@ export function performAstAwareSearch(filesList = [], query = '') {
         fileMatches.push({
           lineNumber: lineNum,
           fileName: file.name,
+          filePath,
           declarationType,
           declarationName,
           lineContent: formattedLineContent,
@@ -516,6 +515,7 @@ export function performAstAwareSearch(filesList = [], query = '') {
       results.push({
         fileId: file.id,
         fileName: file.name,
+        filePath,
         fileExtension: file.extension,
         fileSize: file.size,
         lineCount: file.lineCount,
