@@ -3,11 +3,13 @@ import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { WorkspaceView } from './views/WorkspaceView';
+import { ProjectGraphView } from './views/ProjectGraphView';
 import { ProjectsView } from './views/ProjectsView';
 import { ActivityView } from './views/ActivityView';
 import { SettingsView } from './views/SettingsView';
 import { CodeViewerModal } from './components/CodeViewerModal';
 import { PlaceholderModal } from './components/PlaceholderModal';
+import { GitHubImportModal } from './components/GitHubImportModal';
 
 function AppContent() {
   const { activeTab } = useWorkspace();
@@ -28,6 +30,7 @@ function AppContent() {
 
         <main className="flex-1 flex overflow-hidden">
           {activeTab === 'workspace' && <WorkspaceView />}
+          {activeTab === 'graph' && <ProjectGraphView />}
           {activeTab === 'projects' && <ProjectsView />}
           {activeTab === 'activity' && <ActivityView />}
           {activeTab === 'settings' && <SettingsView />}
@@ -37,6 +40,7 @@ function AppContent() {
       {/* Global Modals */}
       <CodeViewerModal />
       <PlaceholderModal />
+      <GitHubImportModal />
     </div>
   );
 }

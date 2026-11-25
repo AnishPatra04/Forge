@@ -7,6 +7,7 @@ export function Header({ isSidebarCollapsed = false, onToggleSidebar }) {
 
   const tabLabels = {
     workspace: 'Workspace',
+    graph: 'Project Dependency Graph',
     projects: 'Project Inventory',
     activity: 'Audit Activity Log',
     settings: 'Settings & Roadmap',
