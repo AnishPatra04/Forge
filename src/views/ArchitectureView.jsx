@@ -44,13 +44,13 @@ const EMPTY_ARCHITECTURE_MODEL = {
 };
 
 const SYS_COL_W = 248;
-const SYS_COL_GAP = 78;
+const SYS_COL_GAP = 88;
 const SYS_CARD_W = 220;
 const SYS_CARD_H = 84;
 const SYS_CARD_GAP = 14;
 const SYS_HEADER_H = 44;
 const EXT_CARD_H = 42;
-const CANVAS_PAD = 36;
+const CANVAS_PAD = 64;
 
 const MOD_BOX_W = 290;
 const MOD_COL_GAP = 64;
@@ -75,19 +75,120 @@ function buildCurvedPath(x1, y1, x2, y2) {
     const offset = 52;
     return `M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 + offset} ${y2}, ${x2} ${y2}`;
   }
-  const cpOffset = Math.max(48, dx * 0.48);
+  const cpOffset = Math.max(40, dx * 0.48);
   return `M ${x1} ${y1} C ${x1 + cpOffset} ${y1}, ${x2 - cpOffset} ${y2}, ${x2} ${y2}`;
 }
 
+function buildRoundedPolylinePath(points = [], radius = 10) {
+  if (!points || points.length < 2) return '';
+  if (points.length === 2) {
+    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+  }
+
+  const cmds = [`M ${points[0].x} ${points[0].y}`];
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+
+    const dx1 = curr.x - prev.x;
+    const dy1 = curr.y - prev.y;
+    const len1 = Math.hypot(dx1, dy1);
+
+    const dx2 = next.x - curr.x;
+    const dy2 = next.y - curr.y;
+    const len2 = Math.hypot(dx2, dy2);
+
+    if (len1 < 0.5 || len2 < 0.5) {
+      cmds.push(`L ${curr.x} ${curr.y}`);
+      continue;
+    }
+
+    const r = Math.min(radius, len1 / 2, len2 / 2);
+    const beforeX = curr.x - (dx1 / len1) * r;
+    const beforeY = curr.y - (dy1 / len1) * r;
+    const afterX = curr.x + (dx2 / len2) * r;
+    const afterY = curr.y + (dy2 / len2) * r;
+
+    cmds.push(`L ${beforeX.toFixed(1)} ${beforeY.toFixed(1)}`);
+    cmds.push(`Q ${curr.x.toFixed(1)} ${curr.y.toFixed(1)} ${afterX.toFixed(1)} ${afterY.toFixed(1)}`);
+  }
+
+  const last = points[points.length - 1];
+  cmds.push(`L ${last.x} ${last.y}`);
+  return cmds.join(' ');
+}
+
+function distributePortsAlongEdge(items = [], box, padding = 14) {
+  if (!box || items.length === 0) return new Map();
+  const minY = box.y + Math.min(padding, box.height * 0.28);
+  const maxY = box.y + box.height - Math.min(padding, box.height * 0.28);
+  const span = Math.max(0, maxY - minY);
+  const map = new Map();
+
+  items.forEach((item, idx) => {
+    const ratio = items.length === 1 ? 0.5 : idx / (items.length - 1);
+    map.set(item.edgeId, minY + span * ratio);
+  });
+
+  return map;
+}
+
 function computeSystemLayout(model) {
-  const { layers = [], modules = [], externalDependencies = [] } = model || {};
+  const {
+    layers = [],
+    modules = [],
+    moduleEdges = [],
+    externalDependencies = [],
+  } = model || {};
   const modulePos = new Map();
+  const moduleColIndex = new Map();
   const layerBoxes = [];
   const externalPos = new Map();
+  const columnMeta = []; // { colIdx, x, y, width, height, bottom }
 
   const nonEmptyLayers = layers.filter((l) => modules.some((m) => m.layerId === l.id));
 
-  nonEmptyLayers.forEach((layer, colIdx) => {
+  // Partition layers dynamically: code/connected layers sit before External Packages;
+  // purely passive layers (e.g. unlinked Config & Docs) sit after External Packages
+  // so active dependency edges do not pass across unrelated passive modules.
+  const linkedModIds = new Set();
+  for (const e of moduleEdges) {
+    linkedModIds.add(e.sourceModuleId);
+    linkedModIds.add(e.targetModuleId);
+  }
+  for (const ext of externalDependencies) {
+    for (const mId of ext.usedByModuleIds || []) {
+      linkedModIds.add(mId);
+    }
+  }
+
+  const activeLayers = [];
+  const passiveLayers = [];
+  for (const layer of nonEmptyLayers) {
+    const layerModules = modules.filter((m) => m.layerId === layer.id);
+    const hasLinks = layerModules.some((m) => linkedModIds.has(m.id));
+    if (layer.id === 'config_docs' && !hasLinks) {
+      passiveLayers.push(layer);
+    } else {
+      activeLayers.push(layer);
+    }
+  }
+
+  // Keep config_docs last among activeLayers if it only uses externals (e.g. package.json)
+  activeLayers.sort((a, b) => {
+    if (a.id === 'config_docs' && b.id !== 'config_docs') return 1;
+    if (b.id === 'config_docs' && a.id !== 'config_docs') return -1;
+    return a.tier - b.tier;
+  });
+
+  const visibleExternals = externalDependencies.slice(0, 12);
+  const hasExternals = visibleExternals.length > 0;
+
+  let currentColIdx = 0;
+
+  const placeLayerColumn = (layer) => {
+    const colIdx = currentColIdx++;
     const colX = CANVAS_PAD + colIdx * (SYS_COL_W + SYS_COL_GAP);
     const layerModules = modules.filter((m) => m.layerId === layer.id);
     const colHeight =
@@ -96,52 +197,287 @@ function computeSystemLayout(model) {
       Math.max(0, layerModules.length - 1) * SYS_CARD_GAP +
       16;
 
-    layerBoxes.push({
+    const box = {
       ...layer,
+      colIdx,
       x: colX,
       y: CANVAS_PAD,
       width: SYS_COL_W,
       height: colHeight,
-    });
+    };
+    layerBoxes.push(box);
+    columnMeta.push({ colIdx, x: colX, y: CANVAS_PAD, width: SYS_COL_W, height: colHeight, bottom: CANVAS_PAD + colHeight });
 
     layerModules.forEach((mod, rowIdx) => {
       const x = colX + (SYS_COL_W - SYS_CARD_W) / 2;
       const y = CANVAS_PAD + SYS_HEADER_H + rowIdx * (SYS_CARD_H + SYS_CARD_GAP);
-      modulePos.set(mod.id, { x, y, width: SYS_CARD_W, height: SYS_CARD_H });
+      modulePos.set(mod.id, { x, y, width: SYS_CARD_W, height: SYS_CARD_H, colIdx });
+      moduleColIndex.set(mod.id, colIdx);
     });
-  });
+  };
 
-  const visibleExternals = externalDependencies.slice(0, 12);
+  activeLayers.forEach(placeLayerColumn);
+
   let externalBox = null;
-  if (visibleExternals.length > 0) {
-    const extColX = CANVAS_PAD + nonEmptyLayers.length * (SYS_COL_W + SYS_COL_GAP);
+  let extColIdx = -1;
+  if (hasExternals) {
+    extColIdx = currentColIdx++;
+    const extColX = CANVAS_PAD + extColIdx * (SYS_COL_W + SYS_COL_GAP);
+
+    // Order external packages dynamically by average Y of their importing modules
+    // to minimize edge crossings across arbitrary projects
+    const sortedExternals = [...visibleExternals].sort((a, b) => {
+      const avgY = (ext) => {
+        const ys = (ext.usedByModuleIds || [])
+          .map((mId) => modulePos.get(mId))
+          .filter(Boolean)
+          .map((p) => p.y + p.height / 2);
+        return ys.length > 0 ? ys.reduce((s, v) => s + v, 0) / ys.length : Number.MAX_SAFE_INTEGER;
+      };
+      const dy = avgY(a) - avgY(b);
+      if (Math.abs(dy) > 1) return dy;
+      return b.importCount - a.importCount || a.name.localeCompare(b.name);
+    });
+
     const extHeight =
       SYS_HEADER_H +
-      visibleExternals.length * EXT_CARD_H +
-      Math.max(0, visibleExternals.length - 1) * 10 +
+      sortedExternals.length * EXT_CARD_H +
+      Math.max(0, sortedExternals.length - 1) * 10 +
       16;
     externalBox = {
       id: 'layer:external',
       label: 'External Packages',
       accent: '#38bdf8',
+      colIdx: extColIdx,
       x: extColX,
       y: CANVAS_PAD,
       width: SYS_COL_W,
       height: extHeight,
       totalCount: externalDependencies.length,
     };
+    columnMeta.push({
+      colIdx: extColIdx,
+      x: extColX,
+      y: CANVAS_PAD,
+      width: SYS_COL_W,
+      height: extHeight,
+      bottom: CANVAS_PAD + extHeight,
+    });
 
-    visibleExternals.forEach((ext, idx) => {
+    sortedExternals.forEach((ext, idx) => {
       externalPos.set(ext.id, {
         x: extColX + (SYS_COL_W - SYS_CARD_W) / 2,
         y: CANVAS_PAD + SYS_HEADER_H + idx * (EXT_CARD_H + 10),
         width: SYS_CARD_W,
         height: EXT_CARD_H,
+        colIdx: extColIdx,
       });
+    });
+
+    passiveLayers.forEach(placeLayerColumn);
+    return {
+      layerBoxes,
+      modulePos,
+      moduleColIndex,
+      externalBox,
+      externalPos,
+      extColIdx,
+      visibleExternals: sortedExternals,
+      columnMeta,
+    };
+  }
+
+  passiveLayers.forEach(placeLayerColumn);
+  return {
+    layerBoxes,
+    modulePos,
+    moduleColIndex,
+    externalBox,
+    externalPos,
+    extColIdx,
+    visibleExternals: [],
+    columnMeta,
+  };
+}
+
+/**
+ * Computes obstacle-aware SVG edge routes with separated source/target anchors
+ * for both module-to-module edges and module-to-external dependency links.
+ */
+function computeSystemRoutes(model, systemLayout) {
+  const { moduleEdges = [] } = model || {};
+  const { modulePos, externalPos, visibleExternals = [], columnMeta = [] } = systemLayout;
+
+  const rawConnections = [];
+
+  for (const edge of moduleEdges) {
+    const s = modulePos.get(edge.sourceModuleId);
+    const t = modulePos.get(edge.targetModuleId);
+    if (!s || !t) continue;
+    rawConnections.push({
+      kind: 'module',
+      edgeId: `modedge:${edge.id}`,
+      sourceId: edge.sourceModuleId,
+      targetId: edge.targetModuleId,
+      s,
+      t,
+      isCycleEdge: Boolean(edge.isCycleEdge),
+      weight: edge.weight || 1,
     });
   }
 
-  return { layerBoxes, modulePos, externalBox, externalPos, visibleExternals };
+  for (const ext of visibleExternals) {
+    const t = externalPos.get(ext.id);
+    if (!t) continue;
+    for (const modId of ext.usedByModuleIds || []) {
+      const s = modulePos.get(modId);
+      if (!s) continue;
+      rawConnections.push({
+        kind: 'external',
+        edgeId: `extedge:${modId}->${ext.id}`,
+        sourceId: modId,
+        targetId: ext.id,
+        s,
+        t,
+        isCycleEdge: false,
+        weight: 1,
+      });
+    }
+  }
+
+  // Group outgoing & incoming edges per node to separate anchors cleanly along card borders
+  const outgoingByNode = new Map();
+  const incomingByNode = new Map();
+
+  for (const conn of rawConnections) {
+    if (!outgoingByNode.has(conn.sourceId)) outgoingByNode.set(conn.sourceId, []);
+    outgoingByNode.get(conn.sourceId).push(conn);
+
+    if (!incomingByNode.has(conn.targetId)) incomingByNode.set(conn.targetId, []);
+    incomingByNode.get(conn.targetId).push(conn);
+  }
+
+  const outPortY = new Map();
+  for (const [nodeId, list] of outgoingByNode.entries()) {
+    list.sort((a, b) => {
+      const ay = a.t.y + a.t.height / 2;
+      const by = b.t.y + b.t.height / 2;
+      if (Math.abs(ay - by) > 1) return ay - by;
+      return a.t.colIdx - b.t.colIdx || a.edgeId.localeCompare(b.edgeId);
+    });
+    const box = modulePos.get(nodeId);
+    const ports = distributePortsAlongEdge(list, box, 14);
+    for (const [k, v] of ports.entries()) outPortY.set(k, v);
+  }
+
+  const inPortY = new Map();
+  for (const [nodeId, list] of incomingByNode.entries()) {
+    list.sort((a, b) => {
+      const ay = a.s.y + a.s.height / 2;
+      const by = b.s.y + b.s.height / 2;
+      if (Math.abs(ay - by) > 1) return ay - by;
+      return a.s.colIdx - b.s.colIdx || a.edgeId.localeCompare(b.edgeId);
+    });
+    const box = modulePos.get(nodeId) || externalPos.get(nodeId);
+    const pad = externalPos.has(nodeId) ? 10 : 14;
+    const ports = distributePortsAlongEdge(list, box, pad);
+    for (const [k, v] of ports.entries()) inPortY.set(k, v);
+  }
+
+  const gutterOutCounts = new Map();
+  const gutterInCounts = new Map();
+  let topBypassCount = 0;
+  let bottomBypassCount = 0;
+
+  const moduleRoutes = [];
+  const externalRoutes = [];
+
+  for (const conn of rawConnections) {
+    const { s, t, edgeId, kind } = conn;
+    const y1 = outPortY.get(edgeId) ?? s.y + s.height / 2;
+    const y2 = inPortY.get(edgeId) ?? t.y + t.height / 2;
+    const colDelta = t.colIdx - s.colIdx;
+    const arrowPad = kind === 'external' ? 5 : 6;
+
+    let path = '';
+
+    if (colDelta === 1) {
+      // Directly adjacent columns: clean Bezier across unobstructed gutter
+      path = buildCurvedPath(s.x + s.width, y1, t.x - arrowPad, y2);
+    } else if (colDelta === 0) {
+      // Same-column connection: smooth right-side loop inside column gutter
+      const idx = gutterOutCounts.get(s.colIdx) || 0;
+      gutterOutCounts.set(s.colIdx, idx + 1);
+      const loopX = s.x + s.width + 24 + (idx % 4) * 10;
+      const xStart = s.x + s.width;
+      const xEnd = t.x + t.width + arrowPad;
+      path = buildRoundedPolylinePath(
+        [
+          { x: xStart, y: y1 },
+          { x: loopX, y: y1 },
+          { x: loopX, y: y2 },
+          { x: xEnd, y: y2 },
+        ],
+        10
+      );
+    } else {
+      // Multi-column skip or backward edge: route around all intervening column containers
+      const minCol = Math.min(s.colIdx, t.colIdx);
+      const maxCol = Math.max(s.colIdx, t.colIdx);
+      let maxInterBottom = Math.max(s.y + s.height, t.y + t.height);
+      for (const col of columnMeta) {
+        if (col.colIdx > minCol && col.colIdx < maxCol) {
+          maxInterBottom = Math.max(maxInterBottom, col.bottom);
+        } else if (col.colIdx === minCol || col.colIdx === maxCol) {
+          if (colDelta < 0) {
+            maxInterBottom = Math.max(maxInterBottom, col.bottom);
+          }
+        }
+      }
+
+      const outIdx = gutterOutCounts.get(s.colIdx) || 0;
+      gutterOutCounts.set(s.colIdx, outIdx + 1);
+      const inIdx = gutterInCounts.get(t.colIdx) || 0;
+      gutterInCounts.set(t.colIdx, inIdx + 1);
+
+      const xStart = s.x + s.width;
+      const xEnd = t.x - arrowPad;
+      const gutterX1 = xStart + 14 + (outIdx % 5) * 9;
+      const gutterX2 = t.x - 16 - (inIdx % 5) * 9;
+
+      // Choose shorter obstacle-free highway (above column tops vs below intervening column bottoms)
+      const topCost = y1 - CANVAS_PAD + (y2 - CANVAS_PAD);
+      const bottomCost = Math.max(0, maxInterBottom - y1) + Math.max(0, maxInterBottom - y2);
+      const useTopLane = colDelta > 1 && topCost + 40 < bottomCost && CANVAS_PAD >= 48;
+
+      let laneY;
+      if (useTopLane) {
+        laneY = CANVAS_PAD - 16 - topBypassCount * 10;
+        topBypassCount += 1;
+      } else {
+        laneY = maxInterBottom + 20 + bottomBypassCount * 11;
+        bottomBypassCount += 1;
+      }
+
+      path = buildRoundedPolylinePath(
+        [
+          { x: xStart, y: y1 },
+          { x: gutterX1, y: y1 },
+          { x: gutterX1, y: laneY },
+          { x: gutterX2, y: laneY },
+          { x: gutterX2, y: y2 },
+          { x: xEnd, y: y2 },
+        ],
+        10
+      );
+    }
+
+    const routed = { ...conn, path };
+    if (kind === 'module') moduleRoutes.push(routed);
+    else externalRoutes.push(routed);
+  }
+
+  return { moduleRoutes, externalRoutes };
 }
 
 function computeModuleBreakdownLayout(model) {
@@ -195,8 +531,9 @@ function computeModuleBreakdownLayout(model) {
   return { moduleBoxes, filePos };
 }
 
-function buildStandaloneSvg(model, viewMode, systemLayout, breakdownLayout) {
+function buildStandaloneSvg(model, viewMode, systemLayout, systemRoutes, breakdownLayout) {
   const parts = [];
+  let minY = 0;
   let maxW = 900;
   let maxH = 600;
 
@@ -215,26 +552,39 @@ function buildStandaloneSvg(model, viewMode, systemLayout, breakdownLayout) {
         `<text x="${b.x + 14}" y="${b.y + 26}" fill="#e2e8f0" font-family="monospace" font-size="12" font-weight="bold">${escapeXml(b.label)}</text>`
       );
     }
-    for (const edge of model.moduleEdges || []) {
-      const s = systemLayout.modulePos.get(edge.sourceModuleId);
-      const t = systemLayout.modulePos.get(edge.targetModuleId);
-      if (!s || !t) continue;
-      const sameCol = Math.abs(s.x - t.x) < 10;
-      const x1 = s.x + s.width;
-      const y1 = s.y + s.height / 2;
-      const x2 = sameCol ? t.x + t.width : t.x;
-      const y2 = t.y + t.height / 2;
-      const stroke = edge.isCycleEdge ? '#f59e0b' : '#64748b';
-      const dash = edge.isCycleEdge ? ' stroke-dasharray="5 4"' : '';
+
+    for (const route of systemRoutes.moduleRoutes || []) {
+      const stroke = route.isCycleEdge ? '#f59e0b' : '#64748b';
+      const dash = route.isCycleEdge ? ' stroke-dasharray="5 4"' : '';
+      const marker = route.isCycleEdge ? 'url(#export-arrow-cycle)' : 'url(#export-arrow)';
       parts.push(
-        `<path d="${buildCurvedPath(x1, y1, x2, y2)}" fill="none" stroke="${stroke}" stroke-width="1.8"${dash} marker-end="url(#export-arrow)" />`
+        `<path d="${route.path}" fill="none" stroke="${stroke}" stroke-width="1.8"${dash} marker-end="${marker}" />`
       );
     }
+
+    for (const route of systemRoutes.externalRoutes || []) {
+      parts.push(
+        `<path d="${route.path}" fill="none" stroke="#38bdf8" stroke-opacity="0.72" stroke-width="1.3" stroke-dasharray="3 3" marker-end="url(#export-arrow-external)" />`
+      );
+    }
+
+    // Track bypass lane bounds so exported SVG never clips routed arcs
+    for (const route of [...(systemRoutes.moduleRoutes || []), ...(systemRoutes.externalRoutes || [])]) {
+      const nums = route.path.match(/-?\d+(?:\.\d+)?/g) || [];
+      for (let i = 1; i < nums.length; i += 2) {
+        const yVal = Number(nums[i]);
+        if (Number.isFinite(yVal)) {
+          minY = Math.min(minY, yVal - 24);
+          maxH = Math.max(maxH, yVal + 24);
+        }
+      }
+    }
+
     for (const mod of model.modules || []) {
       const p = systemLayout.modulePos.get(mod.id);
       if (!p) continue;
       parts.push(
-        `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="10" fill="#181c2c" stroke="${mod.accent}" stroke-width="1.5" />`
+        `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="10" fill="#141724" stroke="${mod.accent}" stroke-width="1.5" />`
       );
       parts.push(
         `<text x="${p.x + 12}" y="${p.y + 28}" fill="#f8fafc" font-family="monospace" font-size="12" font-weight="bold">${escapeXml(mod.label)}</text>`
@@ -247,7 +597,7 @@ function buildStandaloneSvg(model, viewMode, systemLayout, breakdownLayout) {
       const p = systemLayout.externalPos.get(ext.id);
       if (!p) continue;
       parts.push(
-        `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="8" fill="#131c2e" stroke="#38bdf8" stroke-opacity="0.5" />`
+        `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="8" fill="#101726" stroke="#38bdf8" stroke-opacity="0.6" />`
       );
       parts.push(
         `<text x="${p.x + 12}" y="${p.y + 25}" fill="#bae6fd" font-family="monospace" font-size="11">${escapeXml(ext.name)}</text>`
@@ -283,7 +633,7 @@ function buildStandaloneSvg(model, viewMode, systemLayout, breakdownLayout) {
       if (!p) continue;
       const label = f.hasDuplicateBasename ? f.filePath : f.fileName;
       parts.push(
-        `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="8" fill="#181c2c" stroke="#334155" />`
+        `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="8" fill="#141724" stroke="#334155" />`
       );
       parts.push(
         `<text x="${p.x + 10}" y="${p.y + 24}" fill="#e2e8f0" font-family="monospace" font-size="11">${escapeXml(label)}</text>`
@@ -291,9 +641,14 @@ function buildStandaloneSvg(model, viewMode, systemLayout, breakdownLayout) {
     }
   }
 
+  const vbHeight = maxH - minY;
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${maxW}" height="${maxH}" viewBox="0 0 ${maxW} ${maxH}" style="background:#0c0d12">`,
-    '<defs><marker id="export-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#94a3b8" /></marker></defs>',
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${maxW}" height="${vbHeight}" viewBox="0 ${minY} ${maxW} ${vbHeight}" style="background:#0c0d12">`,
+    '<defs>',
+    '<marker id="export-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#94a3b8" /></marker>',
+    '<marker id="export-arrow-cycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#f59e0b" /></marker>',
+    '<marker id="export-arrow-external" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#38bdf8" /></marker>',
+    '</defs>',
     ...parts,
     '</svg>',
   ].join('');
@@ -350,6 +705,7 @@ export function ArchitectureView() {
   }, [model.externalDependencies]);
 
   const systemLayout = useMemo(() => computeSystemLayout(model), [model]);
+  const systemRoutes = useMemo(() => computeSystemRoutes(model, systemLayout), [model, systemLayout]);
   const breakdownLayout = useMemo(() => computeModuleBreakdownLayout(model), [model]);
 
   const filterTerm = searchFilter.trim().toLowerCase();
@@ -469,7 +825,7 @@ export function ArchitectureView() {
   };
 
   const handleExportSvg = () => {
-    const svgString = buildStandaloneSvg(model, viewMode, systemLayout, breakdownLayout);
+    const svgString = buildStandaloneSvg(model, viewMode, systemLayout, systemRoutes, breakdownLayout);
     const slug = (model.projectName || 'workspace').toLowerCase().replace(/[^a-z0-9]+/g, '-');
     handleDownloadFile(svgString, `${slug}-architecture-${viewMode}.svg`, 'image/svg+xml');
   };
@@ -479,7 +835,29 @@ export function ArchitectureView() {
     handleDownloadFile(activeMermaidCode, `${slug}-architecture-${mermaidKind}.mmd`, 'text/plain');
   };
 
-  const totalCycles = model.highlights.cycles.fileCycles.length + model.highlights.cycles.moduleCycles.length;
+  const totalCycles =
+    (model.highlights?.cycles?.fileCycles?.length || 0) +
+    (model.highlights?.cycles?.moduleCycles?.length || 0);
+  const coreHubs = model.highlights?.coreHubs || [];
+  const entryPoints = model.highlights?.entryPoints || [];
+  const isolatedModules = model.highlights?.isolatedModules || [];
+  const externalHighlights = model.externalDependencies || [];
+  const hasAnyHighlights =
+    coreHubs.length > 0 ||
+    entryPoints.length > 0 ||
+    externalHighlights.length > 0 ||
+    isolatedModules.length > 0 ||
+    totalCycles > 0;
+  const isHighlightsVisible = showHighlights && !selectedDetails;
+
+  const handleToggleHighlights = () => {
+    if (isHighlightsVisible) {
+      setShowHighlights(false);
+      return;
+    }
+    setSelectedTarget(null);
+    setShowHighlights(true);
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full w-full overflow-hidden bg-background relative select-none">
@@ -634,11 +1012,12 @@ export function ArchitectureView() {
 
               <button
                 type="button"
-                onClick={() => setShowHighlights((prev) => !prev)}
+                onClick={handleToggleHighlights}
                 title="Toggle Architecture Highlights"
                 aria-label="Toggle Architecture Highlights"
+                aria-pressed={isHighlightsVisible}
                 className={`p-1.5 rounded-lg border cursor-pointer ${
-                  showHighlights
+                  isHighlightsVisible
                     ? 'bg-primary/10 text-primary border-primary/30'
                     : 'bg-secondary text-muted-foreground border-border hover:text-foreground'
                 }`}
@@ -827,28 +1206,17 @@ export function ArchitectureView() {
                     </g>
                   )}
 
-                  {/* Cross-Module Dependency Edges */}
-                  {model.moduleEdges.map((edge) => {
-                    const s = systemLayout.modulePos.get(edge.sourceModuleId);
-                    const t = systemLayout.modulePos.get(edge.targetModuleId);
-                    if (!s || !t) return null;
-
-                    const isOut = selectedTarget?.type === 'module' && selectedTarget.id === edge.sourceModuleId;
-                    const isIn = selectedTarget?.type === 'module' && selectedTarget.id === edge.targetModuleId;
+                  {/* Cross-Module Dependency Edges (routed cleanly via systemRoutes) */}
+                  {systemRoutes.moduleRoutes.map((route) => {
+                    const isOut = selectedTarget?.type === 'module' && selectedTarget.id === route.sourceId;
+                    const isIn = selectedTarget?.type === 'module' && selectedTarget.id === route.targetId;
                     const hasSel = Boolean(selectedTarget);
                     const isActive = isOut || isIn;
                     const isDimmed = hasSel && !isActive;
 
-                    const sameCol = Math.abs(s.x - t.x) < 10;
-                    const x1 = s.x + s.width;
-                    const y1 = s.y + s.height / 2;
-                    const x2 = sameCol ? t.x + t.width + 6 : t.x - 6;
-                    const y2 = t.y + t.height / 2;
-                    const path = buildCurvedPath(x1, y1, x2, y2);
-
-                    let stroke = edge.isCycleEdge ? '#f59e0b' : '#475569';
-                    let marker = edge.isCycleEdge ? 'url(#arch-arrow-cycle)' : 'url(#arch-arrow-default)';
-                    let strokeWidth = edge.isCycleEdge ? 2 : 1.6;
+                    let stroke = route.isCycleEdge ? '#f59e0b' : '#475569';
+                    let marker = route.isCycleEdge ? 'url(#arch-arrow-cycle)' : 'url(#arch-arrow-default)';
+                    let strokeWidth = route.isCycleEdge ? 2 : 1.6;
                     if (isOut) {
                       stroke = '#818cf8';
                       marker = 'url(#arch-arrow-outgoing)';
@@ -865,51 +1233,40 @@ export function ArchitectureView() {
 
                     return (
                       <path
-                        key={edge.id}
-                        d={path}
+                        key={route.edgeId}
+                        d={route.path}
                         fill="none"
                         stroke={stroke}
                         strokeWidth={strokeWidth}
-                        strokeDasharray={edge.isCycleEdge ? '5 4' : undefined}
+                        strokeDasharray={route.isCycleEdge ? '5 4' : undefined}
                         strokeOpacity={isDimmed ? 0.2 : 0.85}
                         markerEnd={marker}
                       />
                     );
                   })}
 
-                  {/* External Dependency Links (shown prominently when module/external selected) */}
-                  {systemLayout.visibleExternals.map((ext) => {
-                    const extPos = systemLayout.externalPos.get(ext.id);
-                    if (!extPos) return null;
-                    return ext.usedByModuleIds.map((modId) => {
-                      const mPos = systemLayout.modulePos.get(modId);
-                      if (!mPos) return null;
-                      const highlighted =
-                        (selectedTarget?.type === 'module' && selectedTarget.id === modId) ||
-                        (selectedTarget?.type === 'external' && selectedTarget.id === ext.id);
-                      if (selectedTarget && !highlighted) return null;
-                      const path = buildCurvedPath(
-                        mPos.x + mPos.width,
-                        mPos.y + mPos.height / 2,
-                        extPos.x - 5,
-                        extPos.y + extPos.height / 2
-                      );
-                      return (
-                        <path
-                          key={`${modId}->${ext.id}`}
-                          d={path}
-                          fill="none"
-                          stroke="#38bdf8"
-                          strokeWidth={highlighted ? 2 : 1}
-                          strokeDasharray="3 3"
-                          strokeOpacity={highlighted ? 0.9 : 0.28}
-                          markerEnd="url(#arch-arrow-external)"
-                        />
-                      );
-                    });
+                  {/* External Dependency Links (separated anchors & obstacle-free lane routing) */}
+                  {systemRoutes.externalRoutes.map((route) => {
+                    const highlighted =
+                      (selectedTarget?.type === 'module' && selectedTarget.id === route.sourceId) ||
+                      (selectedTarget?.type === 'external' && selectedTarget.id === route.targetId);
+                    if (selectedTarget && !highlighted) return null;
+
+                    return (
+                      <path
+                        key={route.edgeId}
+                        d={route.path}
+                        fill="none"
+                        stroke="#38bdf8"
+                        strokeWidth={highlighted ? 2 : 1.35}
+                        strokeDasharray="3 3"
+                        strokeOpacity={highlighted ? 0.92 : 0.58}
+                        markerEnd="url(#arch-arrow-external)"
+                      />
+                    );
                   })}
 
-                  {/* Module Cards */}
+                  {/* Module Cards (fully opaque so lines never bleed through) */}
                   {model.modules.map((mod) => {
                     const pos = systemLayout.modulePos.get(mod.id);
                     if (!pos) return null;
@@ -943,16 +1300,16 @@ export function ArchitectureView() {
                       >
                         <foreignObject width={pos.width} height={pos.height} className="overflow-visible">
                           <div
-                            className={`w-full h-full rounded-xl p-2.5 flex flex-col justify-between border transition-all ${
+                            className={`w-full h-full rounded-xl p-2.5 flex flex-col justify-between border bg-[#141724] transition-all ${
                               isSelected
-                                ? 'bg-card border-primary ring-2 ring-primary/40 shadow-lg'
+                                ? 'border-primary ring-2 ring-primary/40 shadow-lg'
                                 : isOutgoing
-                                ? 'bg-card border-indigo-400 ring-1 ring-indigo-400/40'
+                                ? 'border-indigo-400 ring-1 ring-indigo-400/40'
                                 : isIncoming
-                                ? 'bg-card border-emerald-400 ring-1 ring-emerald-400/40'
+                                ? 'border-emerald-400 ring-1 ring-emerald-400/40'
                                 : isFilterMatch
-                                ? 'bg-card border-amber-400 ring-2 ring-amber-400/40'
-                                : 'bg-card/95 border-border hover:border-slate-600'
+                                ? 'border-amber-400 ring-2 ring-amber-400/40'
+                                : 'border-slate-700/80 hover:border-slate-500'
                             } ${isDimmed ? 'opacity-35' : 'opacity-100'}`}
                           >
                             <div className="flex items-center justify-between gap-1.5 min-w-0">
@@ -992,7 +1349,7 @@ export function ArchitectureView() {
                     );
                   })}
 
-                  {/* External Package Nodes */}
+                  {/* External Package Nodes (fully opaque) */}
                   {systemLayout.visibleExternals.map((ext) => {
                     const pos = systemLayout.externalPos.get(ext.id);
                     if (!pos) return null;
@@ -1015,10 +1372,10 @@ export function ArchitectureView() {
                           <div
                             className={`w-full h-full rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2 border ${
                               isSelected
-                                ? 'bg-sky-950/60 border-sky-400 ring-1 ring-sky-400/50'
+                                ? 'bg-[#0f1f36] border-sky-400 ring-1 ring-sky-400/50'
                                 : isFilterMatch
-                                ? 'bg-card border-amber-400 ring-1 ring-amber-400/40'
-                                : 'bg-card/85 border-sky-500/25 hover:border-sky-400/60'
+                                ? 'bg-[#141724] border-amber-400 ring-1 ring-amber-400/40'
+                                : 'bg-[#101726] border-sky-500/30 hover:border-sky-400/70'
                             }`}
                           >
                             <span className="flex items-center gap-1.5 font-mono text-[11px] text-sky-200 truncate">
@@ -1426,7 +1783,7 @@ export function ArchitectureView() {
         )}
 
         {/* Architecture Highlights Panel (shown when nothing selected & toggle active) */}
-        {files.length > 0 && viewMode !== 'mermaid' && !selectedDetails && showHighlights && (
+        {files.length > 0 && viewMode !== 'mermaid' && isHighlightsVisible && (
           <div className="absolute bottom-4 right-4 w-72 sm:w-80 max-h-[calc(100%-2rem)] overflow-y-auto p-3.5 rounded-2xl bg-card/90 backdrop-blur-md border border-border shadow-xl z-20 text-xs font-mono space-y-3">
             <div className="flex items-center justify-between pb-1.5 border-b border-border/60">
               <span className="flex items-center gap-1.5 font-semibold text-foreground text-[11px] uppercase">
@@ -1443,66 +1800,132 @@ export function ArchitectureView() {
               </button>
             </div>
 
-            {model.highlights.coreHubs.length > 0 && (
-              <div>
-                <div className="text-[10px] text-indigo-400 uppercase font-semibold mb-1">Core Hubs</div>
-                <div className="space-y-1">
-                  {model.highlights.coreHubs.slice(0, 4).map((hub) => (
-                    <button
-                      key={hub.fileId}
-                      type="button"
-                      onClick={() =>
-                        setSelectedTarget(
-                          viewMode === 'system'
-                            ? { type: 'module', id: hub.moduleId }
-                            : { type: 'file', id: hub.fileId }
-                        )
-                      }
-                      className="w-full flex items-center justify-between px-2 py-1 rounded bg-secondary/60 hover:bg-indigo-500/10 text-left cursor-pointer"
-                    >
-                      <span className="truncate text-[11px] text-foreground">{hub.filePath}</span>
-                      <span className="text-[10px] text-indigo-300 shrink-0">←{hub.inDegree}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {!hasAnyHighlights ? (
+              <p className="text-[11px] text-muted-foreground leading-relaxed py-1">
+                No architectural hubs, entry points, external dependencies, or cycles detected yet.
+              </p>
+            ) : (
+              <>
+                {model.summary.totalFileEdges === 0 && (
+                  <p className="text-[10px] text-muted-foreground leading-relaxed bg-secondary/40 border border-border/60 rounded-lg px-2.5 py-1.5">
+                    No internal workspace imports detected — showing external dependencies and standalone modules.
+                  </p>
+                )}
 
-            {model.highlights.entryPoints.length > 0 && (
-              <div>
-                <div className="text-[10px] text-purple-400 uppercase font-semibold mb-1">Entry Points</div>
-                <div className="space-y-1">
-                  {model.highlights.entryPoints.slice(0, 3).map((ep) => (
-                    <button
-                      key={ep.fileId}
-                      type="button"
-                      onClick={() =>
-                        setSelectedTarget(
-                          viewMode === 'system'
-                            ? { type: 'module', id: ep.moduleId }
-                            : { type: 'file', id: ep.fileId }
-                        )
-                      }
-                      className="w-full flex items-center justify-between px-2 py-1 rounded bg-secondary/60 hover:bg-purple-500/10 text-left cursor-pointer"
-                    >
-                      <span className="truncate text-[11px] text-foreground">{ep.filePath}</span>
-                      <span className="text-[10px] text-purple-300 shrink-0">→{ep.outDegree}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+                {coreHubs.length > 0 && (
+                  <div>
+                    <div className="text-[10px] text-indigo-400 uppercase font-semibold mb-1">Core Hubs</div>
+                    <div className="space-y-1">
+                      {coreHubs.slice(0, 4).map((hub) => (
+                        <button
+                          key={hub.fileId}
+                          type="button"
+                          onClick={() =>
+                            setSelectedTarget(
+                              viewMode === 'system'
+                                ? { type: 'module', id: hub.moduleId }
+                                : { type: 'file', id: hub.fileId }
+                            )
+                          }
+                          className="w-full flex items-center justify-between px-2 py-1 rounded bg-secondary/60 hover:bg-indigo-500/10 text-left cursor-pointer"
+                        >
+                          <span className="truncate text-[11px] text-foreground">{hub.filePath}</span>
+                          <span className="text-[10px] text-indigo-300 shrink-0">←{hub.inDegree}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {totalCycles > 0 && (
-              <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-200 text-[10px]">
-                <div className="font-semibold flex items-center gap-1 mb-0.5">
-                  <AlertTriangle className="w-3 h-3 text-amber-400" />
-                  <span>Circular Dependencies Detected</span>
-                </div>
-                <p className="text-amber-300/80">
-                  {model.highlights.cycles.moduleCycles.length} module cycle(s), {model.highlights.cycles.fileCycles.length} file cycle(s)
-                </p>
-              </div>
+                {entryPoints.length > 0 && (
+                  <div>
+                    <div className="text-[10px] text-purple-400 uppercase font-semibold mb-1">Entry Points</div>
+                    <div className="space-y-1">
+                      {entryPoints.slice(0, 3).map((ep) => (
+                        <button
+                          key={ep.fileId}
+                          type="button"
+                          onClick={() =>
+                            setSelectedTarget(
+                              viewMode === 'system'
+                                ? { type: 'module', id: ep.moduleId }
+                                : { type: 'file', id: ep.fileId }
+                            )
+                          }
+                          className="w-full flex items-center justify-between px-2 py-1 rounded bg-secondary/60 hover:bg-purple-500/10 text-left cursor-pointer"
+                        >
+                          <span className="truncate text-[11px] text-foreground">{ep.filePath}</span>
+                          <span className="text-[10px] text-purple-300 shrink-0">→{ep.outDegree}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {externalHighlights.length > 0 && (
+                  <div>
+                    <div className="text-[10px] text-sky-400 uppercase font-semibold mb-1">
+                      External Dependencies ({externalHighlights.length})
+                    </div>
+                    <div className="space-y-1">
+                      {externalHighlights.slice(0, 5).map((ext) => (
+                        <button
+                          key={ext.id}
+                          type="button"
+                          onClick={() => setSelectedTarget({ type: 'external', id: ext.id })}
+                          className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded bg-secondary/60 hover:bg-sky-500/10 text-left cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1.5 min-w-0 truncate text-[11px] text-foreground">
+                            <Package className="w-3 h-3 text-sky-400 shrink-0" />
+                            <span className="truncate">{ext.name}</span>
+                          </span>
+                          <span className="text-[10px] text-sky-300 shrink-0">
+                            {ext.importCount} ref{ext.importCount === 1 ? '' : 's'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {isolatedModules.length > 0 && (
+                  <div>
+                    <div className="text-[10px] text-slate-400 uppercase font-semibold mb-1">
+                      Isolated Modules ({isolatedModules.length})
+                    </div>
+                    <div className="space-y-1">
+                      {isolatedModules.slice(0, 4).map((iso) => (
+                        <button
+                          key={iso.moduleId}
+                          type="button"
+                          onClick={() => setSelectedTarget({ type: 'module', id: iso.moduleId })}
+                          className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded bg-secondary/60 hover:bg-slate-500/15 text-left cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1.5 min-w-0 truncate text-[11px] text-foreground">
+                            <Box className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="truncate">{iso.label}</span>
+                          </span>
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            {iso.fileCount} file{iso.fileCount === 1 ? '' : 's'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {totalCycles > 0 && (
+                  <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-200 text-[10px]">
+                    <div className="font-semibold flex items-center gap-1 mb-0.5">
+                      <AlertTriangle className="w-3 h-3 text-amber-400" />
+                      <span>Circular Dependencies Detected</span>
+                    </div>
+                    <p className="text-amber-300/80">
+                      {model.highlights.cycles.moduleCycles.length} module cycle(s), {model.highlights.cycles.fileCycles.length} file cycle(s)
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
