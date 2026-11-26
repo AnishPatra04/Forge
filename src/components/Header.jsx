@@ -7,6 +7,7 @@ export function Header({ isSidebarCollapsed = false, onToggleSidebar }) {
 
   const tabLabels = {
     workspace: 'Workspace',
+    assistant: 'AI Codebase Assistant',
     graph: 'Project Dependency Graph',
     projects: 'Project Inventory',
     activity: 'Audit Activity Log',

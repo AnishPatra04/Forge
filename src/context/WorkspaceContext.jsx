@@ -16,6 +16,11 @@ import { createBm25Index, performHybridSearch } from '../utils/hybridSearch.js';
 import { createVectorIndex, EMBEDDING_MODEL_ID } from '../utils/vectorIndex.js';
 import { fetchGitHubRepository } from '../utils/githubClient.js';
 import { workspaceStorage } from '../utils/workspaceStorage.js';
+import {
+  retrieveRagContext,
+  requestAssistantAnswer,
+  checkAssistantHealth,
+} from '../utils/ragPipeline.js';
 
 const WorkspaceContext = createContext(null);
 
@@ -68,6 +73,7 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
     },
   ]);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedLineRange, setSelectedLineRange] = useState(null);
   const [placeholderModal, setPlaceholderModal] = useState(null);
 
   // Search & vector index state
@@ -78,9 +84,27 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
   const [lastSearchMeta, setLastSearchMeta] = useState(null);
   const [embeddingStatus, setEmbeddingStatus] = useState(INITIAL_EMBEDDING_STATUS);
 
+  // AI Assistant (RAG) session state
+  const [assistantMessages, setAssistantMessages] = useState([]);
+  const [isAssistantLoading, setIsAssistantLoading] = useState(false);
+  const [assistantError, setAssistantError] = useState(null);
+  const [assistantBackendStatus, setAssistantBackendStatus] = useState({
+    checked: false,
+    reachable: false,
+    geminiConfigured: false,
+    model: null,
+    error: null,
+  });
+
   const vectorIndexRef = useRef(null);
   const workspaceEpochRef = useRef(0);
   const searchRequestSeqRef = useRef(0);
+  const assistantRequestSeqRef = useRef(0);
+  const assistantAbortControllerRef = useRef(null);
+  const assistantMessagesRef = useRef([]);
+  useEffect(() => {
+    assistantMessagesRef.current = assistantMessages;
+  }, [assistantMessages]);
 
   const getVectorIndex = useCallback(() => {
     if (!vectorIndexRef.current) {
@@ -92,10 +116,19 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
   const resetSearchAndVectorState = useCallback(() => {
     workspaceEpochRef.current += 1;
     searchRequestSeqRef.current += 1;
+    assistantRequestSeqRef.current += 1;
+    if (assistantAbortControllerRef.current) {
+      assistantAbortControllerRef.current.abort();
+      assistantAbortControllerRef.current = null;
+    }
     setIsSearching(false);
     setSearchResults(null);
     setSearchQuery('');
     setLastSearchMeta(null);
+    setAssistantMessages([]);
+    setIsAssistantLoading(false);
+    setAssistantError(null);
+    setSelectedLineRange(null);
 
     if (vectorIndexRef.current) {
       vectorIndexRef.current.clear();
@@ -116,7 +149,12 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
   useEffect(() => {
     return () => {
       searchRequestSeqRef.current += 1;
+      assistantRequestSeqRef.current += 1;
       workspaceEpochRef.current += 1;
+      if (assistantAbortControllerRef.current) {
+        assistantAbortControllerRef.current.abort();
+        assistantAbortControllerRef.current = null;
+      }
       if (vectorIndexRef.current) {
         vectorIndexRef.current.dispose();
         vectorIndexRef.current = null;
@@ -1088,6 +1126,210 @@ const removeFile = useCallback(async (fileId) => {
     return calculateStructuralMetrics(files);
   }, [files]);
 
+  const refreshAssistantHealth = useCallback(async () => {
+    const status = await checkAssistantHealth();
+    setAssistantBackendStatus({ checked: true, ...status });
+    return status;
+  }, []);
+
+  const dismissAssistantError = useCallback(() => {
+    setAssistantError(null);
+  }, []);
+
+  const cancelAssistantRequest = useCallback(() => {
+    assistantRequestSeqRef.current += 1;
+    if (assistantAbortControllerRef.current) {
+      assistantAbortControllerRef.current.abort();
+      assistantAbortControllerRef.current = null;
+    }
+    setIsAssistantLoading(false);
+  }, []);
+
+  const clearAssistantConversation = useCallback(() => {
+    cancelAssistantRequest();
+    setAssistantMessages([]);
+    setAssistantError(null);
+  }, [cancelAssistantRequest]);
+
+  const openFileAtLine = useCallback(
+    (fileOrId, lineRange = null) => {
+      if (!fileOrId) return;
+      let target = null;
+      if (typeof fileOrId === 'object' && fileOrId.content !== undefined) {
+        target = fileOrId;
+      } else {
+        const lookup = typeof fileOrId === 'string' ? fileOrId : fileOrId.fileId || fileOrId.filePath;
+        target =
+          files.find((f) => f.id === lookup) ||
+          files.find((f) => getFilePath(f) === lookup) ||
+          files.find((f) => f.name === lookup) ||
+          null;
+      }
+      if (!target) return;
+      setSelectedFile(target);
+      setSelectedLineRange(
+        lineRange && Number.isInteger(lineRange.startLine)
+          ? {
+              startLine: lineRange.startLine,
+              endLine: lineRange.endLine || lineRange.startLine,
+            }
+          : null
+      );
+    },
+    [files]
+  );
+
+  const askAssistant = useCallback(
+    async (rawQuestion) => {
+      const question = typeof rawQuestion === 'string' ? rawQuestion.trim() : '';
+      if (!question) return null;
+
+      if (files.length === 0) {
+        setAssistantError({
+          code: 'EMPTY_WORKSPACE',
+          message: 'Load a sample project, import local files, or connect a GitHub repository before asking the AI Assistant.',
+        });
+        return null;
+      }
+
+      if (assistantAbortControllerRef.current) {
+        assistantAbortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      assistantAbortControllerRef.current = controller;
+
+      const reqSeq = ++assistantRequestSeqRef.current;
+      const epochAtStart = workspaceEpochRef.current;
+      const timestamp = new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      const priorHistory = assistantMessagesRef.current
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .slice(-6)
+        .map((m) => ({ role: m.role, content: m.content }));
+
+      const userMessage = {
+        id: `msg-user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        role: 'user',
+        content: question,
+        timestamp,
+      };
+
+      setAssistantMessages((prev) => [...prev, userMessage]);
+      setIsAssistantLoading(true);
+      setAssistantError(null);
+
+      try {
+        const rag = await retrieveRagContext({
+          question,
+          files,
+          chunks: searchArtifacts.chunks,
+          bm25Index: searchArtifacts.bm25Index,
+          vectorIndex: getVectorIndex(),
+          conversationHistory: priorHistory,
+        });
+
+        if (
+          reqSeq !== assistantRequestSeqRef.current ||
+          epochAtStart !== workspaceEpochRef.current ||
+          controller.signal.aborted
+        ) {
+          return null;
+        }
+
+        const response = await requestAssistantAnswer({
+          question,
+          projectName,
+          contextChunks: rag.contextChunks,
+          conversationHistory: priorHistory,
+          signal: controller.signal,
+        });
+
+        if (
+          reqSeq !== assistantRequestSeqRef.current ||
+          epochAtStart !== workspaceEpochRef.current ||
+          controller.signal.aborted
+        ) {
+          return null;
+        }
+
+        const assistantMessage = {
+          id: `msg-ai-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          role: 'assistant',
+          content: response.answer,
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          sources: rag.sources,
+          citationsUsed: response.citationsUsed,
+          retrievalMode: rag.retrievalMode,
+          semanticUsed: rag.semanticUsed,
+          model: response.model,
+          usage: response.usage,
+        };
+
+        setAssistantMessages((prev) => [...prev, assistantMessage]);
+        setAssistantBackendStatus((prev) => ({
+          ...prev,
+          checked: true,
+          reachable: true,
+          geminiConfigured: true,
+          model: response.model || prev.model,
+          error: null,
+        }));
+        setIsAssistantLoading(false);
+        if (assistantAbortControllerRef.current === controller) {
+          assistantAbortControllerRef.current = null;
+        }
+
+        addActivity(
+          'search',
+          'Asked AI Assistant',
+          `Answered "${question.slice(0, 70)}${question.length > 70 ? '...' : ''}" using ${rag.sources.length} retrieved code chunk${rag.sources.length === 1 ? '' : 's'} (${rag.semanticUsed ? 'Hybrid' : 'Lexical Fallback'}).`
+        );
+
+        return assistantMessage;
+      } catch (err) {
+        if (assistantAbortControllerRef.current === controller) {
+          assistantAbortControllerRef.current = null;
+        }
+        if (
+          err?.name === 'AbortError' ||
+          reqSeq !== assistantRequestSeqRef.current ||
+          epochAtStart !== workspaceEpochRef.current
+        ) {
+          return null;
+        }
+
+        const errorCode = err?.code || 'REQUEST_FAILED';
+        const errorMessage = err?.message || 'Failed to generate AI Assistant response.';
+        setAssistantError({ code: errorCode, message: errorMessage });
+        if (errorCode === 'MISSING_API_KEY') {
+          setAssistantBackendStatus((prev) => ({
+            ...prev,
+            checked: true,
+            reachable: true,
+            geminiConfigured: false,
+            error: errorMessage,
+          }));
+        } else if (errorCode === 'BACKEND_UNREACHABLE') {
+          setAssistantBackendStatus((prev) => ({
+            ...prev,
+            checked: true,
+            reachable: false,
+            error: errorMessage,
+          }));
+        }
+        setIsAssistantLoading(false);
+        return null;
+      }
+    },
+    [files, searchArtifacts, projectName, getVectorIndex, addActivity]
+  );
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -1104,6 +1346,9 @@ const removeFile = useCallback(async (fileId) => {
         clearActivityLog,
         selectedFile,
         setSelectedFile,
+        selectedLineRange,
+        setSelectedLineRange,
+        openFileAtLine,
         searchQuery,
         setSearchQuery,
         searchResults,
@@ -1115,6 +1360,15 @@ const removeFile = useCallback(async (fileId) => {
         embeddingStatus,
         isIndexingEmbeddings:
           embeddingStatus.status === 'loading_model' || embeddingStatus.status === 'indexing',
+        assistantMessages,
+        isAssistantLoading,
+        assistantError,
+        assistantBackendStatus,
+        askAssistant,
+        clearAssistantConversation,
+        cancelAssistantRequest,
+        refreshAssistantHealth,
+        dismissAssistantError,
         placeholderModal,
         openPlaceholder,
         closePlaceholder,

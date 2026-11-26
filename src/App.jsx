@@ -3,6 +3,7 @@ import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { WorkspaceView } from './views/WorkspaceView';
+import { AssistantView } from './views/AssistantView';
 import { ProjectGraphView } from './views/ProjectGraphView';
 import { ProjectsView } from './views/ProjectsView';
 import { ActivityView } from './views/ActivityView';
@@ -30,6 +31,7 @@ function AppContent() {
 
         <main className="flex-1 flex overflow-hidden">
           {activeTab === 'workspace' && <WorkspaceView />}
+          {activeTab === 'assistant' && <AssistantView />}
           {activeTab === 'graph' && <ProjectGraphView />}
           {activeTab === 'projects' && <ProjectsView />}
           {activeTab === 'activity' && <ActivityView />}
