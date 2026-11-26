@@ -9,9 +9,11 @@ import { SAMPLE_PROJECT_FILES } from '../constants/sampleProject.js';
 import {
   extractAstMetadata,
   calculateStructuralMetrics,
-  performAstAwareSearch,
   resolveFileDependencies,
 } from '../utils/astParser';
+import { chunkWorkspaceFiles } from '../utils/codeChunker.js';
+import { createBm25Index, performHybridSearch } from '../utils/hybridSearch.js';
+import { createVectorIndex, EMBEDDING_MODEL_ID } from '../utils/vectorIndex.js';
 import { fetchGitHubRepository } from '../utils/githubClient.js';
 import { workspaceStorage } from '../utils/workspaceStorage.js';
 
@@ -26,7 +28,16 @@ const INITIAL_GITHUB_IMPORT_STATE = {
 const STORAGE_UNAVAILABLE_MESSAGE =
   'Persistent browser storage (IndexedDB) is unavailable. Your workspace will work in memory, but changes will not persist after refreshing or closing the browser.';
 
-export function WorkspaceProvider({ children }) {
+const INITIAL_EMBEDDING_STATUS = {
+  status: 'idle', // 'idle' | 'loading_model' | 'indexing' | 'ready' | 'unavailable' | 'error'
+  progress: { phase: '', completed: 0, total: 0, modelProgress: null },
+  indexedChunkCount: 0,
+  totalChunkCount: 0,
+  error: null,
+  modelId: EMBEDDING_MODEL_ID,
+};
+
+export function WorkspaceProvider({ children, vectorIndexFactory = createVectorIndex }) {
   const [projectName, setProjectName] = useState('Forge Core');
   const [files, setFiles] = useState([]);
   const [activeTab, setActiveTab] = useState('workspace');
@@ -59,10 +70,59 @@ export function WorkspaceProvider({ children }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [placeholderModal, setPlaceholderModal] = useState(null);
 
-  // Search state
+  // Search & vector index state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchMode, setSearchMode] = useState('hybrid'); // 'hybrid' | 'keyword' | 'semantic'
+  const [lastSearchMeta, setLastSearchMeta] = useState(null);
+  const [embeddingStatus, setEmbeddingStatus] = useState(INITIAL_EMBEDDING_STATUS);
+
+  const vectorIndexRef = useRef(null);
+  const workspaceEpochRef = useRef(0);
+  const searchRequestSeqRef = useRef(0);
+
+  const getVectorIndex = useCallback(() => {
+    if (!vectorIndexRef.current) {
+      vectorIndexRef.current = vectorIndexFactory();
+    }
+    return vectorIndexRef.current;
+  }, [vectorIndexFactory]);
+
+  const resetSearchAndVectorState = useCallback(() => {
+    workspaceEpochRef.current += 1;
+    searchRequestSeqRef.current += 1;
+    setIsSearching(false);
+    setSearchResults(null);
+    setSearchQuery('');
+    setLastSearchMeta(null);
+
+    if (vectorIndexRef.current) {
+      vectorIndexRef.current.clear();
+      const viStatus = vectorIndexRef.current.getStatus();
+      setEmbeddingStatus({
+        status: viStatus.status === 'unavailable' ? 'unavailable' : 'idle',
+        progress: { phase: '', completed: 0, total: 0, modelProgress: null },
+        indexedChunkCount: 0,
+        totalChunkCount: 0,
+        error: viStatus.error || null,
+        modelId: viStatus.modelId || EMBEDDING_MODEL_ID,
+      });
+    } else {
+      setEmbeddingStatus(INITIAL_EMBEDDING_STATUS);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      searchRequestSeqRef.current += 1;
+      workspaceEpochRef.current += 1;
+      if (vectorIndexRef.current) {
+        vectorIndexRef.current.dispose();
+        vectorIndexRef.current = null;
+      }
+    };
+  }, []);
 
   const addActivity = useCallback((type, title, detail) => {
     const newEntry = {
@@ -411,6 +471,7 @@ export function WorkspaceProvider({ children }) {
       projectSource: sampleSource,
     };
 
+    resetSearchAndVectorState();
     setFiles(sampleFilesWithAst);
     setProjectName(sampleName);
     setProjectSource(sampleSource);
@@ -428,7 +489,7 @@ export function WorkspaceProvider({ children }) {
     });
     handleStorageResult(res, 'Sample project', opRev, true);
   },
-  [waitForRestore, addActivity, handleStorageResult]
+  [waitForRestore, resetSearchAndVectorState, addActivity, handleStorageResult]
 );
 
 const removeFile = useCallback(async (fileId) => {
@@ -446,6 +507,7 @@ const removeFile = useCallback(async (fileId) => {
     files: resolvedRemainingFiles,
   };
 
+  getVectorIndex().removeFile(fileId);
   setFiles(resolvedRemainingFiles);
 
   addActivity(
@@ -465,7 +527,7 @@ const removeFile = useCallback(async (fileId) => {
 
     const res = await workspaceStorage.removeFile(fileId);
     handleStorageResult(res, 'File removal', opRev, false);
-  }, [waitForRestore, addActivity, selectedFile, searchResults, handleStorageResult]);
+  }, [waitForRestore, getVectorIndex, addActivity, selectedFile, searchResults, handleStorageResult]);
 
   const clearAllFiles = useCallback(async () => {
     const current = await waitForRestore();
@@ -480,8 +542,7 @@ const removeFile = useCallback(async (fileId) => {
     };
     setFiles([]);
     setSelectedFile(null);
-    setSearchResults(null);
-    setSearchQuery('');
+    resetSearchAndVectorState();
     setProjectSource({ type: 'local' });
     setLastImportSummary(null);
     addActivity('clear', 'Workspace Cleared', `Cleared all ${count} files from the active session.`);
@@ -492,32 +553,230 @@ const removeFile = useCallback(async (fileId) => {
       projectSource: { type: 'local' },
     });
     handleStorageResult(res, 'Workspace clear', opRev, true);
-  }, [waitForRestore, addActivity, handleStorageResult]);
+  }, [waitForRestore, resetSearchAndVectorState, addActivity, handleStorageResult]);
 
-  const executeSearch = useCallback((query) => {
-    const raw = query.trim();
-    setSearchQuery(raw);
+  const searchArtifacts = useMemo(() => {
+    const chunks = chunkWorkspaceFiles(files);
+    const bm25Index = createBm25Index(chunks);
+    return { chunks, bm25Index };
+  }, [files]);
 
-    if (!raw) {
-      setSearchResults(null);
-      return;
+  // Automatically restore cached vectors and index new/modified chunks when workspace files change
+  useEffect(() => {
+    if (isRestoringWorkspace) return;
+
+    let cancelled = false;
+    const runEpoch = workspaceEpochRef.current;
+    const { chunks } = searchArtifacts;
+    const vi = getVectorIndex();
+
+    if (files.length === 0 || chunks.length === 0) {
+      vi.indexFiles([], { chunks: [] }).then(() => {
+        if (cancelled || runEpoch !== workspaceEpochRef.current) return;
+        const s = vi.getStatus();
+        setEmbeddingStatus({
+          status: s.status === 'unavailable' ? 'unavailable' : 'idle',
+          progress: { phase: '', completed: 0, total: 0, modelProgress: null },
+          indexedChunkCount: 0,
+          totalChunkCount: 0,
+          error: s.error || null,
+          modelId: s.modelId || EMBEDDING_MODEL_ID,
+        });
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
-    setIsSearching(true);
+    vi.indexFiles(files, {
+      chunks,
+      onProgress: (prog) => {
+        if (cancelled || runEpoch !== workspaceEpochRef.current) return;
+        setEmbeddingStatus((prev) => ({
+          ...prev,
+          status: prog.phase === 'indexing' ? 'indexing' : 'loading_model',
+          progress: {
+            phase: prog.phase,
+            completed: prog.completed || 0,
+            total: prog.total || chunks.length,
+            modelProgress:
+              typeof prog.info?.progress === 'number'
+                ? Math.round(prog.info.progress)
+                : prog.phase === 'indexing'
+                  ? 100
+                  : prev.progress.modelProgress,
+          },
+          totalChunkCount: chunks.length,
+          error: null,
+        }));
+      },
+    }).then((res) => {
+      if (cancelled || runEpoch !== workspaceEpochRef.current || res?.cancelled) return;
+      const s = vi.getStatus();
+      setEmbeddingStatus({
+        status: s.status,
+        progress: {
+          phase: s.status,
+          completed: s.status === 'ready' ? chunks.length : 0,
+          total: chunks.length,
+          modelProgress: s.status === 'ready' ? 100 : null,
+        },
+        indexedChunkCount: s.indexedChunkCount,
+        totalChunkCount: chunks.length,
+        error: res?.error || s.error || null,
+        modelId: s.modelId || EMBEDDING_MODEL_ID,
+      });
+    });
 
-    const { results, grandTotalMatches } = performAstAwareSearch(files, raw);
+    return () => {
+      cancelled = true;
+    };
+  }, [files, searchArtifacts, isRestoringWorkspace, getVectorIndex]);
 
-    setSearchResults(results);
-    setIsSearching(false);
+  const executeSearch = useCallback(
+    async (query, options = {}) => {
+      const raw = typeof query === 'string' ? query.trim() : '';
+      const searchSeq = ++searchRequestSeqRef.current;
+      const epochAtStart = workspaceEpochRef.current;
+      setSearchQuery(raw);
 
-    addActivity(
-      'search',
-      `Searched "${raw}"`,
-      results && results.length > 0
-        ? `Found ${grandTotalMatches} match${grandTotalMatches === 1 ? '' : 'es'} across ${results.length} file${results.length === 1 ? '' : 's'}.`
-        : `No matches found across ${files.length} loaded files.`
-    );
-  }, [files, addActivity]);
+      if (!raw) {
+        setSearchResults(null);
+        setIsSearching(false);
+        setLastSearchMeta(null);
+        return null;
+      }
+
+      if (files.length === 0) {
+        setSearchResults([]);
+        setIsSearching(false);
+        setLastSearchMeta({
+          query: raw,
+          modeUsed: 'keyword',
+          semanticUsed: false,
+          totalMatchedChunks: 0,
+          grandTotalMatches: 0,
+        });
+        return [];
+      }
+
+      const { chunks, bm25Index } = searchArtifacts;
+      const requestedMode = options.mode || searchMode || 'hybrid';
+      const vi = getVectorIndex();
+      const viState = vi.getStatus();
+      const vectorMap = vi.getVectorMap();
+      const canTrySemantic =
+        requestedMode !== 'keyword' &&
+        vectorMap.size > 0 &&
+        viState.status !== 'unavailable';
+
+      // Immediate lexical baseline (BM25 + AST) whenever keyword matching is included
+      if (requestedMode !== 'semantic') {
+        const lexicalRes = performHybridSearch(files, raw, {
+          mode: requestedMode,
+          chunks,
+          bm25Index,
+          queryVector: null,
+          vectorMap: null,
+        });
+        setSearchResults(lexicalRes.results);
+        setLastSearchMeta({
+          query: raw,
+          modeUsed: canTrySemantic ? 'hybrid_pending' : lexicalRes.modeUsed,
+          semanticUsed: false,
+          totalMatchedChunks: lexicalRes.totalMatchedChunks,
+          grandTotalMatches: lexicalRes.grandTotalMatches,
+        });
+
+        if (!canTrySemantic) {
+          setIsSearching(false);
+          addActivity(
+            'search',
+            `Searched "${raw}"`,
+            lexicalRes.results.length > 0
+              ? `Found ${lexicalRes.grandTotalMatches} match${lexicalRes.grandTotalMatches === 1 ? '' : 'es'} across ${lexicalRes.results.length} file${lexicalRes.results.length === 1 ? '' : 's'} (BM25 + AST).`
+              : `No matches found across ${files.length} loaded files.`
+          );
+          return lexicalRes.results;
+        }
+      }
+
+      // If semantic-only is requested while vectors are unavailable, fall back to BM25 + AST
+      if (!canTrySemantic) {
+        const fallbackRes = performHybridSearch(files, raw, {
+          mode: 'hybrid',
+          chunks,
+          bm25Index,
+          queryVector: null,
+          vectorMap: null,
+        });
+        setSearchResults(fallbackRes.results);
+        setIsSearching(false);
+        setLastSearchMeta({
+          query: raw,
+          modeUsed: 'lexical_fallback',
+          semanticUsed: false,
+          totalMatchedChunks: fallbackRes.totalMatchedChunks,
+          grandTotalMatches: fallbackRes.grandTotalMatches,
+        });
+        addActivity(
+          'search',
+          `Searched "${raw}"`,
+          fallbackRes.results.length > 0
+            ? `Found ${fallbackRes.grandTotalMatches} match${fallbackRes.grandTotalMatches === 1 ? '' : 'es'} across ${fallbackRes.results.length} file${fallbackRes.results.length === 1 ? '' : 's'} (lexical fallback).`
+            : `No matches found across ${files.length} loaded files.`
+        );
+        return fallbackRes.results;
+      }
+
+      setIsSearching(true);
+      let queryVector = null;
+      try {
+        queryVector = await vi.embedQuery(raw);
+      } catch {
+        queryVector = null;
+      }
+
+      if (searchSeq !== searchRequestSeqRef.current || epochAtStart !== workspaceEpochRef.current) {
+        return null;
+      }
+
+      const semanticAvailable = Boolean(queryVector && vectorMap.size > 0);
+      const effectiveMode =
+        requestedMode === 'semantic' && !semanticAvailable ? 'hybrid' : requestedMode;
+
+      const finalRes = performHybridSearch(files, raw, {
+        mode: effectiveMode,
+        chunks,
+        bm25Index,
+        queryVector: semanticAvailable ? queryVector : null,
+        vectorMap: semanticAvailable ? vectorMap : null,
+      });
+
+      setSearchResults(finalRes.results);
+      setIsSearching(false);
+      setLastSearchMeta({
+        query: raw,
+        modeUsed:
+          requestedMode === 'semantic' && !semanticAvailable
+            ? 'lexical_fallback'
+            : finalRes.modeUsed,
+        semanticUsed: semanticAvailable,
+        totalMatchedChunks: finalRes.totalMatchedChunks,
+        grandTotalMatches: finalRes.grandTotalMatches,
+      });
+
+      addActivity(
+        'search',
+        `Searched "${raw}"`,
+        finalRes.results.length > 0
+          ? `Found ${finalRes.grandTotalMatches} match${finalRes.grandTotalMatches === 1 ? '' : 'es'} across ${finalRes.results.length} file${finalRes.results.length === 1 ? '' : 's'}${semanticAvailable ? ` (${effectiveMode})` : ' (lexical fallback)'}.`
+          : `No matches found across ${files.length} loaded files.`
+      );
+      return finalRes.results;
+    },
+    [files, searchArtifacts, searchMode, getVectorIndex, addActivity]
+  );
 
   const clearActivityLog = useCallback(() => {
     setActivityLog([
@@ -701,6 +960,7 @@ const removeFile = useCallback(async (fileId) => {
       const opRev = ++latestMutationRevRef.current;
       const resolvedFiles = resolveFileDependencies(stagedFiles);
 
+      resetSearchAndVectorState();
       latestStateRef.current = {
         files: resolvedFiles,
         projectName: nextName,
@@ -711,8 +971,6 @@ const removeFile = useCallback(async (fileId) => {
       setProjectName(nextName);
       setProjectSource(nextSource);
       setSelectedFile(null);
-      setSearchResults(null);
-      setSearchQuery('');
 
       const persistResult = await workspaceStorage.replaceWorkspace({
         files: resolvedFiles,
@@ -824,7 +1082,7 @@ const removeFile = useCallback(async (fileId) => {
       });
       return { success: false, error: err?.message };
     }
-  }, [waitForRestore, addActivity, handleStorageResult]);
+  }, [waitForRestore, resetSearchAndVectorState, addActivity, handleStorageResult]);
 
   const structuralMetrics = useMemo(() => {
     return calculateStructuralMetrics(files);
@@ -851,6 +1109,12 @@ const removeFile = useCallback(async (fileId) => {
         searchResults,
         isSearching,
         executeSearch,
+        searchMode,
+        setSearchMode,
+        lastSearchMeta,
+        embeddingStatus,
+        isIndexingEmbeddings:
+          embeddingStatus.status === 'loading_model' || embeddingStatus.status === 'indexing',
         placeholderModal,
         openPlaceholder,
         closePlaceholder,

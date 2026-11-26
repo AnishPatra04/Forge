@@ -78,6 +78,35 @@ export function createWorkspaceStorage(adapter = indexedDbStorage) {
     clearWorkspace(snapshot) {
       return enqueueWrite(() => safeExecute(() => adapter.clearWorkspace(snapshot)));
     },
+
+    async loadEmbeddings() {
+      await writeQueue;
+      return safeExecute(() => (adapter.loadEmbeddings ? adapter.loadEmbeddings() : []), []);
+    },
+
+    saveEmbeddings(records = [], options = {}) {
+      if (records.length === 0 && !(options?.replaceFileIds?.length > 0)) {
+        return Promise.resolve({ ok: true, unavailable: false, error: null });
+      }
+      return enqueueWrite(() =>
+        safeExecute(() => (adapter.saveEmbeddings ? adapter.saveEmbeddings(records, options) : undefined))
+      );
+    },
+
+    deleteFileEmbeddings(fileId) {
+      if (!fileId) {
+        return Promise.resolve({ ok: true, unavailable: false, error: null });
+      }
+      return enqueueWrite(() =>
+        safeExecute(() => (adapter.deleteFileEmbeddings ? adapter.deleteFileEmbeddings(fileId) : undefined))
+      );
+    },
+
+    clearEmbeddings() {
+      return enqueueWrite(() =>
+        safeExecute(() => (adapter.clearEmbeddings ? adapter.clearEmbeddings() : undefined))
+      );
+    },
   };
 }
 

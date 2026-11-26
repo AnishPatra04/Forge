@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   UploadCloud,
   FileCode,
@@ -78,6 +78,11 @@ export function WorkspaceView() {
     searchResults,
     isSearching,
     executeSearch,
+    searchMode,
+    setSearchMode,
+    lastSearchMeta,
+    embeddingStatus,
+    isIndexingEmbeddings,
     openGitHubModal,
     projectSource,
     lastImportSummary,
@@ -93,12 +98,29 @@ export function WorkspaceView() {
   } = useWorkspace();
 
   const fileInputRef = useRef(null);
+  const searchDebounceRef = useRef(null);
+  const prevSearchQueryRef = useRef(searchQuery);
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(projectName);
   const [localInputQuery, setLocalInputQuery] = useState('');
   const [fileExtensionFilter, setFileExtensionFilter] = useState('ALL');
   const [dragActive, setDragActive] = useState(false);
   const [confirmOverwriteStorage, setConfirmOverwriteStorage] = useState(false);
+
+  useEffect(() => {
+    if (prevSearchQueryRef.current && !searchQuery) {
+      setLocalInputQuery('');
+    }
+    prevSearchQueryRef.current = searchQuery;
+  }, [searchQuery]);
+
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, []);
 
   const handleNameSave = () => {
     if (tempName.trim()) {
@@ -150,14 +172,65 @@ export function WorkspaceView() {
     setDragActive(false);
   };
 
+  const handleSearchInputChange = (e) => {
+    const nextValue = e.target.value;
+    setLocalInputQuery(nextValue);
+
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
+
+    if (!nextValue.trim()) {
+      if (searchQuery || searchResults !== null) {
+        executeSearch('');
+      }
+      return;
+    }
+
+    searchDebounceRef.current = setTimeout(() => {
+      searchDebounceRef.current = null;
+      executeSearch(nextValue);
+    }, 250);
+  };
+
+  const handleClearSearch = () => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
+    setLocalInputQuery('');
+    executeSearch('');
+  };
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
     executeSearch(localInputQuery);
   };
 
   const handleSuggestedQuery = (suggested) => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
     setLocalInputQuery(suggested);
     executeSearch(suggested);
+  };
+
+  const handleSearchModeChange = (mode) => {
+    setSearchMode(mode);
+    const activeText = localInputQuery.trim() || searchQuery.trim();
+    if ((searchQuery || searchResults !== null) && activeText) {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
+      }
+      executeSearch(activeText, { mode });
+    }
   };
 
   // Real statistics calculation
@@ -687,35 +760,135 @@ export function WorkspaceView() {
               {/* Right Column: Basic Assistant - Local Code Search (7 cols) */}
               <div className="lg:col-span-7 space-y-4">
                 <div className="p-5 rounded-xl bg-[#11131c] border border-slate-800/80 space-y-5">
-                  {/* Assistant Header & Honest Disclosure */}
+                  {/* Search Header, Mode Selector & Semantic Index Status */}
                   <div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
                           <Search className="w-4 h-4" />
                         </div>
                         <div>
                           <h3 className="text-sm font-semibold text-slate-100">
-                            Local Code Search
+                            Hybrid Code Search
                           </h3>
                           <span className="text-[10px] text-indigo-400 font-mono">
-                            Preview Milestone 1
+                            BM25 + AST + Local Embeddings
                           </span>
                         </div>
                       </div>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800">
-                        Exact Keyword Matcher
-                      </span>
-                    </div>
 
-                    <div className="mt-3 p-3 rounded-lg bg-slate-950/60 border border-slate-800/80 text-[11px] text-slate-400 leading-normal flex items-start gap-2.5">
-                      <AlertCircle className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="text-slate-300">Client-Side Search Preview:</strong>{' '}
-                        This feature searches the raw contents of your loaded codebase files locally
-                        for relevant keywords. No LLM or cloud API is utilized in this milestone.
+                      {/* Search Mode Selector */}
+                      <div
+                        role="group"
+                        aria-label="Search mode"
+                        className="inline-flex items-center p-0.5 rounded-lg bg-[#0a0c12] border border-slate-800"
+                      >
+                        {[
+                          { id: 'keyword', label: 'Keyword' },
+                          { id: 'hybrid', label: 'Hybrid' },
+                          { id: 'semantic', label: 'Semantic' },
+                        ].map((modeOption) => {
+                          const isActive = searchMode === modeOption.id;
+                          return (
+                            <button
+                              key={modeOption.id}
+                              type="button"
+                              aria-pressed={isActive}
+                              onClick={() => handleSearchModeChange(modeOption.id)}
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-colors ${
+                                isActive
+                                  ? 'bg-indigo-600 text-white shadow-sm'
+                                  : 'text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              {modeOption.label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
+
+                    {/* Embedding / Indexing Status & Fallback Indicator */}
+                    {(() => {
+                      const status = embeddingStatus?.status || 'idle';
+                      const prog = embeddingStatus?.progress || {};
+                      const semanticUnavailable = status === 'unavailable' || status === 'error';
+                      const fallbackActive =
+                        semanticUnavailable ||
+                        (lastSearchMeta?.query === searchQuery &&
+                          lastSearchMeta?.modeUsed === 'lexical_fallback');
+
+                      if (isIndexingEmbeddings) {
+                        const pct =
+                          status === 'indexing' && prog.total > 0
+                            ? Math.min(100, Math.round(((prog.completed || 0) / prog.total) * 100))
+                            : typeof prog.modelProgress === 'number'
+                              ? prog.modelProgress
+                              : null;
+                        return (
+                          <div className="mt-3 p-3 rounded-lg bg-indigo-950/20 border border-indigo-500/25 text-[11px] text-slate-300 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="flex items-center gap-2 font-medium text-indigo-300">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                                {status === 'loading_model'
+                                  ? 'Loading client-side embedding model...'
+                                  : `Indexing code chunks (${prog.completed || 0}/${prog.total || embeddingStatus?.totalChunkCount || 0})...`}
+                              </span>
+                              {pct !== null && (
+                                <span className="font-mono text-[10px] text-indigo-300">{pct}%</span>
+                              )}
+                            </div>
+                            <div className="w-full h-1 rounded-full bg-slate-800 overflow-hidden">
+                              <div
+                                className="h-full bg-indigo-500 transition-all duration-200"
+                                style={{ width: `${pct !== null ? pct : 25}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (fallbackActive) {
+                        return (
+                          <div className="mt-3 p-3 rounded-lg bg-amber-950/20 border border-amber-500/30 text-[11px] text-amber-200/90 leading-normal flex items-start gap-2.5">
+                            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                            <div>
+                              <strong className="text-amber-300">
+                                Semantic Search Unavailable — Lexical Fallback Active:
+                              </strong>{' '}
+                              Using local BM25 + AST keyword matching.
+                              {embeddingStatus?.error ? ` (${embeddingStatus.error})` : ''}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (status === 'ready') {
+                        return (
+                          <div className="mt-3 px-3 py-2 rounded-lg bg-slate-950/60 border border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                              <span className="text-slate-300 font-medium">Semantic Index Ready</span>
+                              <span className="font-mono text-[10px] text-slate-400">
+                                • {embeddingStatus.indexedChunkCount} chunk{embeddingStatus.indexedChunkCount === 1 ? '' : 's'} embedded locally
+                              </span>
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-500">Client-side ONNX</span>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="mt-3 p-3 rounded-lg bg-slate-950/60 border border-slate-800/80 text-[11px] text-slate-400 leading-normal flex items-start gap-2.5">
+                          <AlertCircle className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                          <div>
+                            <strong className="text-slate-300">Client-Side Hybrid Search:</strong>{' '}
+                            Combines AST exact matches, BM25 keyword ranking, and local semantic
+                            embeddings — zero server calls required.
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Search Query Input */}
@@ -724,18 +897,20 @@ export function WorkspaceView() {
                       <input
                         type="text"
                         value={localInputQuery}
-                        onChange={(e) => setLocalInputQuery(e.target.value)}
+                        onChange={handleSearchInputChange}
                         placeholder="Ask a question or enter keywords (e.g., auth, token, retry, database)..."
-                        className="w-full bg-[#0a0c12] border border-slate-700/80 focus:border-indigo-500 rounded-lg pl-10 pr-24 py-2.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none transition-colors"
+                        className="w-full bg-[#0a0c12] border border-slate-700/80 focus:border-indigo-500 rounded-lg pl-10 pr-28 py-2.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none transition-colors"
                       />
-                      <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                      {isSearching ? (
+                        <Loader2 className="w-4 h-4 text-indigo-400 animate-spin absolute left-3.5 top-3" />
+                      ) : (
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                      )}
                       {localInputQuery && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setLocalInputQuery('');
-                            executeSearch('');
-                          }}
+                          aria-label="Clear search"
+                          onClick={handleClearSearch}
                           className="absolute right-16 top-2.5 text-slate-400 hover:text-slate-200 p-1"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -745,7 +920,7 @@ export function WorkspaceView() {
                         type="submit"
                         className="absolute right-2 top-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
                       >
-                        Search
+                        {isSearching ? 'Searching...' : 'Search'}
                       </button>
                     </div>
 
@@ -769,16 +944,55 @@ export function WorkspaceView() {
 
                   {/* Search Results Display */}
                   <div className="pt-2">
+                    {searchQuery && searchResults === null && isSearching && (
+                      <div className="p-8 text-center rounded-lg bg-slate-950/40 border border-slate-800/60">
+                        <Loader2 className="w-7 h-7 text-indigo-400 animate-spin mx-auto mb-2" />
+                        <p className="text-xs font-medium text-slate-300">
+                          Searching "{searchQuery}"...
+                        </p>
+                      </div>
+                    )}
+
                     {searchQuery && searchResults !== null && (
                       <div className="space-y-4">
-                        <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-800">
-                          <span className="text-slate-400">
-                            Results for{' '}
-                            <span className="text-indigo-300 font-mono font-medium">
-                              "{searchQuery}"
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs pb-2 border-b border-slate-800">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-slate-400">
+                              Results for{' '}
+                              <span className="text-indigo-300 font-mono font-medium">
+                                "{searchQuery}"
+                              </span>
                             </span>
-                          </span>
-                          <span className="text-[11px] font-mono text-slate-400">
+                            {lastSearchMeta?.query === searchQuery && (
+                              <span
+                                className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                                  lastSearchMeta.modeUsed === 'lexical_fallback' ||
+                                  (searchMode !== 'keyword' &&
+                                    !lastSearchMeta.semanticUsed &&
+                                    lastSearchMeta.modeUsed !== 'hybrid_pending')
+                                    ? 'bg-amber-500/10 text-amber-300 border-amber-500/25'
+                                    : 'bg-slate-900 text-slate-300 border-slate-700/80'
+                                }`}
+                              >
+                                {lastSearchMeta.modeUsed === 'lexical_fallback' ||
+                                (searchMode !== 'keyword' &&
+                                  !lastSearchMeta.semanticUsed &&
+                                  lastSearchMeta.modeUsed !== 'hybrid_pending')
+                                  ? 'Lexical Fallback (BM25 + AST)'
+                                  : lastSearchMeta.modeUsed === 'hybrid_pending'
+                                    ? 'BM25 + AST (refining vectors...)'
+                                    : lastSearchMeta.semanticUsed
+                                      ? searchMode === 'semantic'
+                                        ? 'Semantic Vector Match'
+                                        : 'Hybrid (BM25 + AST + Vector)'
+                                      : 'Keyword (BM25 + AST)'}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] font-mono text-slate-400 flex items-center gap-2">
+                            {isSearching && (
+                              <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />
+                            )}
                             {searchResults.length} file{searchResults.length === 1 ? '' : 's'} matched
                           </span>
                         </div>
@@ -790,9 +1004,8 @@ export function WorkspaceView() {
                               No matching code snippets found
                             </p>
                             <p className="text-[11px] text-slate-400 max-w-sm mx-auto leading-relaxed">
-                              No occurrences of "{searchQuery}" were detected in your loaded files.
-                              Try searching for function names, variables, imports, or keywords like
-                              'export', 'class', or 'return'.
+                              No relevant matches for "{searchQuery}" were detected in your loaded files.
+                              Try different keywords, a conceptual description, or another search mode.
                             </p>
                           </div>
                         ) : (
@@ -805,7 +1018,7 @@ export function WorkspaceView() {
                                   className="rounded-lg bg-slate-950/80 border border-slate-800/80 overflow-hidden"
                                 >
                                   {/* Result File Header */}
-                                  <div className="px-3.5 py-2 bg-slate-900/60 border-b border-slate-800/80 flex items-center justify-between">
+                                  <div className="px-3.5 py-2 bg-slate-900/60 border-b border-slate-800/80 flex items-center justify-between gap-2">
                                     <div className="flex items-center gap-2 min-w-0">
                                       <FileCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                                       <span
@@ -815,7 +1028,12 @@ export function WorkspaceView() {
                                         {res.filePath || res.fileName}
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      {res.matchType && (
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800/90 text-slate-300 border border-slate-700/70 capitalize">
+                                          {res.matchType}
+                                        </span>
+                                      )}
                                       <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
                                         {res.totalMatches} match{res.totalMatches === 1 ? '' : 'es'}
                                       </span>
@@ -832,21 +1050,27 @@ export function WorkspaceView() {
 
                                   {/* Code Snippets with Line Numbers */}
                                   <div className="p-2 space-y-1 font-mono text-[11px]">
-                                    {res.matches.slice(0, 5).map((match, mIdx) => (
-                                      <div
-                                        key={mIdx}
-                                        className="flex items-start gap-2 hover:bg-slate-900/80 px-2 py-1 rounded transition-colors group"
-                                      >
-                                        <span className="text-slate-400 select-none text-[10px] w-8 text-right shrink-0 pt-0.5">
-                                          L{match.lineNumber}
-                                        </span>
-                                        <span className="text-slate-300 whitespace-pre-wrap break-all flex-1">
-                                          {match.lineContent}
-                                        </span>
-                                      </div>
-                                    ))}
+                                    {res.matches.slice(0, 5).map((match, mIdx) => {
+                                      const lineLabel =
+                                        match.endLine && match.endLine !== match.lineNumber
+                                          ? `L${match.lineNumber}-${match.endLine}`
+                                          : `L${match.lineNumber}`;
+                                      return (
+                                        <div
+                                          key={mIdx}
+                                          className="flex items-start gap-2 hover:bg-slate-900/80 px-2 py-1 rounded transition-colors group"
+                                        >
+                                          <span className="text-slate-400 select-none text-[10px] min-w-12 text-right shrink-0 pt-0.5">
+                                            {lineLabel}
+                                          </span>
+                                          <span className="text-slate-300 whitespace-pre-wrap break-all flex-1">
+                                            {match.lineContent}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
                                     {res.matches.length > 5 && (
-                                      <div className="text-[10px] text-slate-400 pt-1 pl-10">
+                                      <div className="text-[10px] text-slate-400 pt-1 pl-14">
                                         + {res.matches.length - 5} more matching lines in file
                                       </div>
                                     )}
@@ -866,8 +1090,8 @@ export function WorkspaceView() {
                           Search Across Ingested Code
                         </p>
                         <p className="text-[11px] text-slate-400 max-w-sm mx-auto leading-relaxed">
-                          Type any identifier, question, or keyword above to find matching code snippets
-                          and file locations.
+                          Type a symbol name, keyword, or natural-language question above to search
+                          your workspace files.
                         </p>
                       </div>
                     )}

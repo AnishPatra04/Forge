@@ -121,10 +121,11 @@ export function extractAstMetadata(content, filename) {
       FunctionDeclaration(node) {
         const name = node.id?.name || 'anonymous';
         const line = node.loc?.start?.line || 1;
+        const endLine = node.loc?.end?.line || line;
         const key = `${name}:${line}`;
         if (!seenFunctions.has(key)) {
           seenFunctions.add(key);
-          functions.push({ name, line });
+          functions.push({ name, line, endLine });
         }
       },
 
@@ -145,19 +146,20 @@ export function extractAstMetadata(content, filename) {
         // Check if assigned value is a function or class
         if (node.id?.type === 'Identifier') {
           const initType = node.init?.type;
+          const endLine = node.init?.loc?.end?.line || node.loc?.end?.line || line;
           if (initType === 'ArrowFunctionExpression' || initType === 'FunctionExpression') {
             const name = node.id.name;
             const fKey = `${name}:${line}`;
             if (!seenFunctions.has(fKey)) {
               seenFunctions.add(fKey);
-              functions.push({ name, line });
+              functions.push({ name, line, endLine });
             }
           } else if (initType === 'ClassExpression') {
             const name = node.id.name;
             const cKey = `${name}:${line}`;
             if (!seenClasses.has(cKey)) {
               seenClasses.add(cKey);
-              classes.push({ name, line });
+              classes.push({ name, line, endLine });
             }
           }
         }
@@ -168,10 +170,11 @@ export function extractAstMetadata(content, filename) {
         if (node.key?.type === 'Identifier' && node.key.name !== 'constructor') {
           const name = node.key.name;
           const line = node.loc?.start?.line || 1;
+          const endLine = node.loc?.end?.line || line;
           const key = `${name}:${line}`;
           if (!seenFunctions.has(key)) {
             seenFunctions.add(key);
-            functions.push({ name, line });
+            functions.push({ name, line, endLine });
           }
         }
       },
@@ -180,10 +183,11 @@ export function extractAstMetadata(content, filename) {
       ClassDeclaration(node) {
         const name = node.id?.name || 'anonymous';
         const line = node.loc?.start?.line || 1;
+        const endLine = node.loc?.end?.line || line;
         const key = `${name}:${line}`;
         if (!seenClasses.has(key)) {
           seenClasses.add(key);
-          classes.push({ name, line });
+          classes.push({ name, line, endLine });
         }
       },
 
