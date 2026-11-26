@@ -22,6 +22,7 @@ export function Sidebar({ isCollapsed = false, onToggle: _onToggle }) {
     activityLog,
     loadSampleProject,
     openPlaceholder,
+    isRestoringWorkspace,
   } = useWorkspace();
 
   const navItems = [
@@ -195,7 +196,7 @@ export function Sidebar({ isCollapsed = false, onToggle: _onToggle }) {
                 </div>
               </div>
 
-              {files.length === 0 && (
+              {!isRestoringWorkspace && files.length === 0 && (
                 <button
                   onClick={loadSampleProject}
                   className="w-full mt-2 py-1.5 px-2.5 rounded-lg text-xs font-medium bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"

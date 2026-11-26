@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   isSupportedFile,
   getFileExtension,
@@ -12,6 +12,7 @@ import {
   performAstAwareSearch,
 } from '../utils/astParser';
 import { fetchGitHubRepository } from '../utils/githubClient.js';
+import { workspaceStorage } from '../utils/workspaceStorage.js';
 
 const WorkspaceContext = createContext(null);
 
@@ -21,6 +22,9 @@ const INITIAL_GITHUB_IMPORT_STATE = {
   error: null,
 };
 
+const STORAGE_UNAVAILABLE_MESSAGE =
+  'Persistent browser storage (IndexedDB) is unavailable. Your workspace will work in memory, but changes will not persist after refreshing or closing the browser.';
+
 export function WorkspaceProvider({ children }) {
   const [projectName, setProjectName] = useState('Forge Core');
   const [files, setFiles] = useState([]);
@@ -29,6 +33,18 @@ export function WorkspaceProvider({ children }) {
   const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
   const [githubImportState, setGithubImportState] = useState(INITIAL_GITHUB_IMPORT_STATE);
   const [lastImportSummary, setLastImportSummary] = useState(null);
+  const [isRestoringWorkspace, setIsRestoringWorkspace] = useState(true);
+  const [storageStatus, setStorageStatus] = useState('initializing'); // 'initializing' | 'ready' | 'unavailable' | 'error'
+  const [storageError, setStorageError] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [restoreFailed, setRestoreFailed] = useState(false);
+
+  const latestStateRef = useRef({ files: [], projectName: 'Forge Core', projectSource: { type: 'local' } });
+  const restorePromiseRef = useRef(null);
+  const restoreFailedRef = useRef(false);
+  const latestMutationRevRef = useRef(0);
+  const hasUnsavedChangesRef = useRef(false);
+  const hasUserMutatedRef = useRef(false);
   const githubAbortControllerRef = useRef(null);
   const [activityLog, setActivityLog] = useState([
     {
@@ -58,18 +74,198 @@ export function WorkspaceProvider({ children }) {
     setActivityLog((prev) => [newEntry, ...prev]);
   }, []);
 
-  const updateProjectName = useCallback((newName) => {
-    const trimmed = newName.trim();
-    if (!trimmed) return;
-    setProjectName(trimmed);
-    addActivity('rename', 'Project Renamed', `Project name updated to "${trimmed}"`);
+  useEffect(() => {
+    latestStateRef.current = { files, projectName, projectSource };
+  }, [files, projectName, projectSource]);
+
+  const handleStorageResult = useCallback((result, actionLabel, opRev, isFullSync = false) => {
+    if (!result || result.ok) {
+      if (isFullSync) {
+        if (opRev >= latestMutationRevRef.current) {
+          restoreFailedRef.current = false;
+          setRestoreFailed(false);
+          hasUnsavedChangesRef.current = false;
+          setHasUnsavedChanges(false);
+          setStorageStatus('ready');
+          setStorageError(null);
+        }
+      } else if (
+        !restoreFailedRef.current &&
+        !hasUnsavedChangesRef.current &&
+        opRev >= latestMutationRevRef.current
+      ) {
+        setStorageStatus('ready');
+        setStorageError(null);
+      }
+      return;
+    }
+
+    hasUnsavedChangesRef.current = true;
+    setHasUnsavedChanges(true);
+
+    if (result.unavailable) {
+      if (storageStatus !== 'unavailable') {
+        setStorageError(STORAGE_UNAVAILABLE_MESSAGE);
+        addActivity('import_warning', 'In-Memory Mode Only', STORAGE_UNAVAILABLE_MESSAGE);
+      }
+      setStorageStatus('unavailable');
+      return;
+    }
+
+    const msg = `${actionLabel} could not be saved to browser storage (${result.error}). Your in-memory workspace remains active, but unsaved changes exist.`;
+    setStorageStatus('error');
+    setStorageError(msg);
+    addActivity('import_warning', 'Storage Save Warning', msg);
+  }, [storageStatus, addActivity]);
+
+  const dismissStorageError = useCallback(() => {
+    setStorageError(null);
+  }, []);
+
+  const waitForRestore = useCallback(async () => {
+    if (restorePromiseRef.current) {
+      await restorePromiseRef.current;
+    }
+    return latestStateRef.current;
+  }, []);
+
+  const applyRestoredResult = useCallback((result) => {
+    if (!result.ok) {
+      hasUnsavedChangesRef.current = true;
+      setHasUnsavedChanges(true);
+      if (result.unavailable) {
+        restoreFailedRef.current = false;
+        setRestoreFailed(false);
+        setStorageStatus('unavailable');
+        setStorageError(STORAGE_UNAVAILABLE_MESSAGE);
+        addActivity('import_warning', 'In-Memory Mode Only', STORAGE_UNAVAILABLE_MESSAGE);
+      } else {
+        restoreFailedRef.current = true;
+        setRestoreFailed(true);
+        setStorageStatus('error');
+        setStorageError(
+          `Could not restore saved workspace (${result.error}). Retry restore or explicitly confirm overwriting saved data.`
+        );
+        addActivity(
+          'import_warning',
+          'Workspace Restore Failed',
+          `Could not restore saved workspace from IndexedDB (${result.error}).`
+        );
+      }
+      return false;
+    }
+
+    const savedFiles = Array.isArray(result.data?.files) ? result.data.files : [];
+    const savedName = result.data?.projectName || 'Forge Core';
+    const savedSource = result.data?.projectSource || { type: 'local' };
+    const hasSavedData = savedFiles.length > 0 || savedName !== 'Forge Core' || savedSource.type !== 'local';
+
+    if (hasUserMutatedRef.current && hasSavedData) {
+      setStorageStatus('error');
+      setStorageError(
+        'Saved workspace is now readable, but you have newer in-memory changes. Click "Overwrite Saved" to replace it, or reload the page to load the saved workspace.'
+      );
+      return false;
+    }
+
+    restoreFailedRef.current = false;
+    setRestoreFailed(false);
+
+    if (!hasUserMutatedRef.current && hasSavedData) {
+      latestStateRef.current = {
+        files: savedFiles,
+        projectName: savedName,
+        projectSource: savedSource,
+      };
+      setFiles(savedFiles);
+      setProjectName(savedName);
+      setProjectSource(savedSource);
+      if (savedFiles.length > 0) {
+        addActivity(
+          'session',
+          'Restored Saved Workspace',
+          `Restored ${savedFiles.length} file${savedFiles.length === 1 ? '' : 's'} for "${savedName}" from IndexedDB.`
+        );
+      }
+    }
+
+    if (!hasUserMutatedRef.current || !hasSavedData) {
+      if (!hasUnsavedChangesRef.current || !hasUserMutatedRef.current) {
+        hasUnsavedChangesRef.current = false;
+        setHasUnsavedChanges(false);
+        setStorageStatus('ready');
+        setStorageError(null);
+      }
+    }
+    return true;
   }, [addActivity]);
 
+  const retryRestoreWorkspace = useCallback(async () => {
+    const result = await workspaceStorage.loadWorkspace();
+    return applyRestoredResult(result);
+  }, [applyRestoredResult]);
+
+  const syncWorkspaceToStorage = useCallback(async ({ confirmOverwrite = false } = {}) => {
+    await waitForRestore();
+    if (restoreFailedRef.current && !confirmOverwrite) {
+      const msg =
+        'Previous saved workspace failed to restore. Retry restore first or confirm overwriting saved data.';
+      setStorageError(msg);
+      return { ok: false, requiresConfirmation: true, error: msg };
+    }
+
+    const snapshot = latestStateRef.current;
+    const opRev = ++latestMutationRevRef.current;
+    const res = await workspaceStorage.replaceWorkspace(snapshot);
+    handleStorageResult(res, 'Full workspace sync', opRev, true);
+    return res;
+  }, [waitForRestore, handleStorageResult]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreSavedWorkspace() {
+      const result = await workspaceStorage.loadWorkspace();
+      if (cancelled) return;
+      applyRestoredResult(result);
+      setIsRestoringWorkspace(false);
+    }
+
+    const promise = restoreSavedWorkspace();
+    restorePromiseRef.current = promise;
+    return () => {
+      cancelled = true;
+    };
+  }, [applyRestoredResult]);
+
+  const updateProjectName = useCallback(async (newName) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+
+    const current = await waitForRestore();
+    if (trimmed === current.projectName) return;
+
+    hasUserMutatedRef.current = true;
+    const opRev = ++latestMutationRevRef.current;
+    latestStateRef.current = { ...current, projectName: trimmed };
+    setProjectName(trimmed);
+    addActivity('rename', 'Project Renamed', `Project name updated to "${trimmed}"`);
+
+    const res = await workspaceStorage.updateMetadata({
+      projectName: trimmed,
+      projectSource: current.projectSource,
+    });
+    handleStorageResult(res, 'Project rename', opRev, false);
+  }, [waitForRestore, addActivity, handleStorageResult]);
+
   const importFiles = useCallback(async (fileList) => {
+    const initialState = await waitForRestore();
+    hasUserMutatedRef.current = true;
+
     const validFiles = [];
     const skippedFiles = [];
     const duplicatePaths = [];
-    const existingPaths = new Set(files.map((f) => getFilePath(f)));
+    const existingPaths = new Set(initialState.files.map((f) => getFilePath(f)));
     const seenBatchPaths = new Set();
 
     for (let i = 0; i < fileList.length; i++) {
@@ -121,14 +317,33 @@ export function WorkspaceProvider({ children }) {
     }
 
     if (validFiles.length > 0) {
-      const wasEmpty = files.length === 0;
+      const postRead = latestStateRef.current;
+      const wasEmpty = postRead.files.length === 0;
+      const nextSource = wasEmpty ? { type: 'local' } : postRead.projectSource;
+      const currentPaths = new Set(postRead.files.map((f) => getFilePath(f)));
+      const filesToPersist = validFiles.filter((f) => !currentPaths.has(getFilePath(f)));
+
+      const opRev = ++latestMutationRevRef.current;
+      latestStateRef.current = {
+        files: [...postRead.files, ...filesToPersist],
+        projectName: postRead.projectName,
+        projectSource: nextSource,
+      };
       setFiles((prev) => {
         const prevPaths = new Set(prev.map((f) => getFilePath(f)));
         const filteredNew = validFiles.filter((f) => !prevPaths.has(getFilePath(f)));
         return [...prev, ...filteredNew];
       });
       if (wasEmpty) {
-        setProjectSource({ type: 'local' });
+        setProjectSource(nextSource);
+      }
+
+      if (filesToPersist.length > 0 || wasEmpty) {
+        const persistResult = await workspaceStorage.appendFiles(
+          filesToPersist,
+          wasEmpty ? { projectName: postRead.projectName, projectSource: nextSource } : null
+        );
+        handleStorageResult(persistResult, 'Imported files', opRev, false);
       }
 
       const details = [`Ingested: ${validFiles.map((f) => f.path || f.name).join(', ')}`];
@@ -166,9 +381,12 @@ export function WorkspaceProvider({ children }) {
       duplicateCount: duplicatePaths.length,
       skippedCount: skippedFiles.length,
     };
-  }, [files, addActivity]);
+  }, [waitForRestore, addActivity, handleStorageResult]);
 
-  const loadSampleProject = useCallback(() => {
+  const loadSampleProject = useCallback(async () => {
+    await waitForRestore();
+    hasUserMutatedRef.current = true;
+
     const sampleFilesWithAst = SAMPLE_PROJECT_FILES.map((sample) => {
       const samplePath = getFilePath(sample);
       return {
@@ -177,24 +395,46 @@ export function WorkspaceProvider({ children }) {
         astMetadata: extractAstMetadata(sample.content, samplePath),
       };
     });
+    const sampleName = 'Forge Core Engine (Sample)';
+    const sampleSource = { type: 'sample' };
+    const opRev = ++latestMutationRevRef.current;
+
+    latestStateRef.current = {
+      files: sampleFilesWithAst,
+      projectName: sampleName,
+      projectSource: sampleSource,
+    };
     setFiles(sampleFilesWithAst);
-    setProjectName('Forge Core Engine (Sample)');
-    setProjectSource({ type: 'sample' });
+    setProjectName(sampleName);
+    setProjectSource(sampleSource);
     setLastImportSummary(null);
     addActivity(
       'import',
       'Loaded Sample Project',
       `Loaded ${SAMPLE_PROJECT_FILES.length} reference files across TypeScript, JavaScript, Python, JSON, and Markdown.`
     );
-  }, [addActivity]);
 
-  const removeFile = useCallback((fileId) => {
-    const target = files.find((f) => f.id === fileId);
+    const res = await workspaceStorage.replaceWorkspace({
+      files: sampleFilesWithAst,
+      projectName: sampleName,
+      projectSource: sampleSource,
+    });
+    handleStorageResult(res, 'Sample project', opRev, true);
+  }, [waitForRestore, addActivity, handleStorageResult]);
+
+  const removeFile = useCallback(async (fileId) => {
+    const current = await waitForRestore();
+    const target = current.files.find((f) => f.id === fileId);
+    if (!target) return;
+
+    hasUserMutatedRef.current = true;
+    const opRev = ++latestMutationRevRef.current;
+    latestStateRef.current = {
+      ...current,
+      files: current.files.filter((f) => f.id !== fileId),
+    };
     setFiles((prev) => prev.filter((f) => f.id !== fileId));
-
-    if (target) {
-      addActivity('remove', 'File Removed', `Removed ${target.path || target.name} from current workspace.`);
-    }
+    addActivity('remove', 'File Removed', `Removed ${target.path || target.name} from current workspace.`);
 
     if (selectedFile?.id === fileId) {
       setSelectedFile(null);
@@ -204,10 +444,22 @@ export function WorkspaceProvider({ children }) {
     if (searchResults) {
       setSearchResults((prev) => (prev ? prev.filter((r) => r.fileId !== fileId) : null));
     }
-  }, [files, addActivity, selectedFile, searchResults]);
 
-  const clearAllFiles = useCallback(() => {
-    const count = files.length;
+    const res = await workspaceStorage.removeFile(fileId);
+    handleStorageResult(res, 'File removal', opRev, false);
+  }, [waitForRestore, addActivity, selectedFile, searchResults, handleStorageResult]);
+
+  const clearAllFiles = useCallback(async () => {
+    const current = await waitForRestore();
+    hasUserMutatedRef.current = true;
+    const count = current.files.length;
+    const opRev = ++latestMutationRevRef.current;
+
+    latestStateRef.current = {
+      files: [],
+      projectName: current.projectName,
+      projectSource: { type: 'local' },
+    };
     setFiles([]);
     setSelectedFile(null);
     setSearchResults(null);
@@ -215,7 +467,14 @@ export function WorkspaceProvider({ children }) {
     setProjectSource({ type: 'local' });
     setLastImportSummary(null);
     addActivity('clear', 'Workspace Cleared', `Cleared all ${count} files from the active session.`);
-  }, [files.length, addActivity]);
+
+    // Preserve current projectName when clearing files
+    const res = await workspaceStorage.clearWorkspace({
+      projectName: current.projectName,
+      projectSource: { type: 'local' },
+    });
+    handleStorageResult(res, 'Workspace clear', opRev, true);
+  }, [waitForRestore, addActivity, handleStorageResult]);
 
   const executeSearch = useCallback((query) => {
     const raw = query.trim();
@@ -308,6 +567,14 @@ export function WorkspaceProvider({ children }) {
     });
 
     try {
+      await waitForRestore();
+      if (!isActiveRun()) {
+        throw new DOMException('GitHub import cancelled.', 'AbortError');
+      }
+
+      // Snapshot mutation revision after restoration completes to detect conflicting edits during import
+      const baseMutationRev = latestMutationRevRef.current;
+
       const repoResult = await fetchGitHubRepository({
         url,
         branch,
@@ -328,8 +595,11 @@ export function WorkspaceProvider({ children }) {
         throw new Error(`No source files could be downloaded from "${owner}/${repo}".`);
       }
 
-      // When merging, preserve existing files with duplicate paths before parsing
-      const existingPaths = replaceWorkspace ? new Set() : new Set(files.map((f) => getFilePath(f)));
+      // When merging, check post-restore workspace files
+      const preParseState = latestStateRef.current;
+      const existingPaths = replaceWorkspace
+        ? new Set()
+        : new Set(preParseState.files.map((f) => getFilePath(f)));
       const seenBatchPaths = new Set();
       const toParse = [];
       let duplicateCount = 0;
@@ -394,20 +664,65 @@ export function WorkspaceProvider({ children }) {
         throw new DOMException('GitHub import cancelled.', 'AbortError');
       }
 
+      // Prevent GitHub Replace from overwriting workspace changes made while downloading/parsing
+      if (replaceWorkspace && latestMutationRevRef.current !== baseMutationRev) {
+        const conflictMsg =
+          'Workspace was modified while the GitHub import was running. Your current changes were preserved—please retry the import.';
+        addActivity('import_warning', 'GitHub Replace Cancelled (Workspace Changed)', conflictMsg);
+        throw new Error(conflictMsg);
+      }
+
       // Atomic commit after download + parsing succeed
+      hasUserMutatedRef.current = true;
+      const commitBaseState = latestStateRef.current;
+      const wasEmpty = commitBaseState.files.length === 0;
+      const nextName = `${owner}/${repo}`;
+      const nextSource = { type: 'github', owner, repo, branch: resolvedBranch, commitSha, repoUrl };
+
       if (replaceWorkspace) {
+        const opRev = ++latestMutationRevRef.current;
+        latestStateRef.current = { files: stagedFiles, projectName: nextName, projectSource: nextSource };
         setFiles(stagedFiles);
-        setProjectName(`${owner}/${repo}`);
-        setProjectSource({ type: 'github', owner, repo, branch: resolvedBranch, commitSha, repoUrl });
+        setProjectName(nextName);
+        setProjectSource(nextSource);
         setSelectedFile(null);
         setSearchResults(null);
         setSearchQuery('');
-      } else if (stagedFiles.length > 0) {
-        setFiles((prev) => {
-          const prevPaths = new Set(prev.map((f) => getFilePath(f)));
-          const uniqueStaged = stagedFiles.filter((f) => !prevPaths.has(getFilePath(f)));
-          return [...prev, ...uniqueStaged];
+
+        const persistResult = await workspaceStorage.replaceWorkspace({
+          files: stagedFiles,
+          projectName: nextName,
+          projectSource: nextSource,
         });
+        handleStorageResult(persistResult, 'GitHub repository import', opRev, true);
+      } else if (stagedFiles.length > 0) {
+        const currentPaths = new Set(commitBaseState.files.map((f) => getFilePath(f)));
+        const filesToPersist = stagedFiles.filter((f) => !currentPaths.has(getFilePath(f)));
+        duplicateCount += stagedFiles.length - filesToPersist.length;
+
+        if (filesToPersist.length > 0 || wasEmpty) {
+          const opRev = ++latestMutationRevRef.current;
+          latestStateRef.current = {
+            files: [...commitBaseState.files, ...filesToPersist],
+            projectName: wasEmpty ? nextName : commitBaseState.projectName,
+            projectSource: wasEmpty ? nextSource : commitBaseState.projectSource,
+          };
+          setFiles((prev) => {
+            const prevPaths = new Set(prev.map((f) => getFilePath(f)));
+            const uniqueStaged = stagedFiles.filter((f) => !prevPaths.has(getFilePath(f)));
+            return [...prev, ...uniqueStaged];
+          });
+          if (wasEmpty) {
+            setProjectName(nextName);
+            setProjectSource(nextSource);
+          }
+
+          const persistResult = await workspaceStorage.appendFiles(
+            filesToPersist,
+            wasEmpty ? { projectName: nextName, projectSource: nextSource } : null
+          );
+          handleStorageResult(persistResult, 'Merged GitHub files', opRev, false);
+        }
       }
 
       const summary = {
@@ -469,7 +784,7 @@ export function WorkspaceProvider({ children }) {
       });
       return { success: false, error: err?.message };
     }
-  }, [files, addActivity]);
+  }, [waitForRestore, addActivity, handleStorageResult]);
 
   const structuralMetrics = useMemo(() => {
     return calculateStructuralMetrics(files);
@@ -508,6 +823,14 @@ export function WorkspaceProvider({ children }) {
         cancelGitHubImport,
         lastImportSummary,
         dismissImportSummary,
+        isRestoringWorkspace,
+        storageStatus,
+        storageError,
+        hasUnsavedChanges,
+        restoreFailed,
+        dismissStorageError,
+        retryRestoreWorkspace,
+        syncWorkspaceToStorage,
         structuralMetrics,
         totalFunctions: structuralMetrics.totalFunctions,
         totalClasses: structuralMetrics.totalClasses,

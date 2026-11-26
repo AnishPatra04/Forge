@@ -23,6 +23,7 @@ export function ProjectsView() {
     setSelectedFile,
     openGitHubModal,
     projectSource,
+    isRestoringWorkspace,
   } = useWorkspace();
 
   const totalLines = files.reduce((acc, f) => acc + f.lineCount, 0);
@@ -184,7 +185,11 @@ export function ProjectsView() {
             <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider font-mono mb-3">
               Included Files ({files.length})
             </h3>
-            {files.length === 0 ? (
+            {isRestoringWorkspace && files.length === 0 ? (
+              <div className="p-6 text-center rounded-lg bg-slate-900/40 border border-slate-800 text-xs text-slate-400">
+                Restoring saved workspace from browser storage...
+              </div>
+            ) : files.length === 0 ? (
               <div className="p-6 text-center rounded-lg bg-slate-900/40 border border-slate-800 text-xs text-slate-400">
                 No files loaded yet. Switch to the Workspace tab to import your codebase.
               </div>

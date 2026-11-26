@@ -18,6 +18,7 @@ import {
   FolderOpen,
   FolderGit2,
   ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { SUPPORTED_EXTENSIONS, EXTENSION_CONFIG, getFileExtension } from '../constants/fileTypes';
@@ -81,6 +82,14 @@ export function WorkspaceView() {
     projectSource,
     lastImportSummary,
     dismissImportSummary,
+    isRestoringWorkspace,
+    storageStatus,
+    storageError,
+    hasUnsavedChanges,
+    restoreFailed,
+    dismissStorageError,
+    retryRestoreWorkspace,
+    syncWorkspaceToStorage,
   } = useWorkspace();
 
   const fileInputRef = useRef(null);
@@ -89,6 +98,7 @@ export function WorkspaceView() {
   const [localInputQuery, setLocalInputQuery] = useState('');
   const [fileExtensionFilter, setFileExtensionFilter] = useState('ALL');
   const [dragActive, setDragActive] = useState(false);
+  const [confirmOverwriteStorage, setConfirmOverwriteStorage] = useState(false);
 
   const handleNameSave = () => {
     if (tempName.trim()) {
@@ -213,7 +223,7 @@ export function WorkspaceView() {
                 <span>Import GitHub</span>
               </button>
 
-              {files.length === 0 && (
+              {!isRestoringWorkspace && files.length === 0 && (
                 <button
                   onClick={loadSampleProject}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700/80 hover:border-indigo-500/40 transition-colors"
@@ -226,8 +236,94 @@ export function WorkspaceView() {
           </div>
         </div>
 
+        {/* Non-blocking Storage Notice (Unavailable or Error) */}
+        {storageError && (
+          <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-800/50 text-xs text-amber-200 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">
+                  {storageStatus === 'unavailable'
+                    ? 'In-Memory Workspace Only'
+                    : 'Browser Storage Warning'}
+                </p>
+                <p className="text-[11px] text-amber-300/90 mt-0.5">{storageError}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {restoreFailed ? (
+                <>
+                  <button
+                    onClick={retryRestoreWorkspace}
+                    className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 transition-colors"
+                  >
+                    Retry Restore
+                  </button>
+                  {confirmOverwriteStorage ? (
+                    <>
+                      <button
+                        onClick={async () => {
+                          setConfirmOverwriteStorage(false);
+                          await syncWorkspaceToStorage({ confirmOverwrite: true });
+                        }}
+                        className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-red-950/60 hover:bg-red-900/70 text-red-200 border border-red-700/60 transition-colors"
+                      >
+                        Confirm Overwrite
+                      </button>
+                      <button
+                        onClick={() => setConfirmOverwriteStorage(false)}
+                        className="px-2 py-1 rounded-md text-[11px] text-slate-300 hover:text-white bg-slate-800 border border-slate-700 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmOverwriteStorage(true)}
+                      className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                    >
+                      Overwrite Saved
+                    </button>
+                  )}
+                </>
+              ) : (
+                storageStatus === 'error' &&
+                hasUnsavedChanges && (
+                  <button
+                    onClick={() => syncWorkspaceToStorage()}
+                    className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 transition-colors"
+                  >
+                    Retry Sync
+                  </button>
+                )
+              )}
+              <button
+                onClick={() => {
+                  setConfirmOverwriteStorage(false);
+                  dismissStorageError();
+                }}
+                className="text-amber-300 hover:text-amber-100 p-1"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Empty State / Initial Importer Interface */}
-        {files.length === 0 ? (
+        {isRestoringWorkspace && files.length === 0 ? (
+          <div className="border border-slate-800 rounded-xl p-12 text-center bg-slate-900/30">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+              <Loader2 className="w-6 h-6 animate-spin" />
+            </div>
+            <h2 className="text-base font-semibold text-slate-100 mb-1">
+              Restoring Saved Workspace...
+            </h2>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              Checking browser IndexedDB storage for your previous files and project metadata.
+            </p>
+          </div>
+        ) : files.length === 0 ? (
           <div className="space-y-6">
             <div
               onDrop={handleDrop}

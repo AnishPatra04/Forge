@@ -15,7 +15,7 @@ import {
 import { useWorkspace } from '../context/WorkspaceContext';
 
 export function SettingsView() {
-  const { files, projectName } = useWorkspace();
+  const { files, projectName, storageStatus } = useWorkspace();
 
   const totalLines = files.reduce((acc, f) => acc + f.lineCount, 0);
   const totalSizeBytes = files.reduce((acc, f) => acc + f.size, 0);
@@ -226,7 +226,15 @@ export function SettingsView() {
             </div>
             <div className="p-2.5 rounded bg-slate-950/80 border border-slate-800">
               <span className="text-slate-400 block text-[10px]">Sandbox Environment</span>
-              <span className="text-emerald-400">Client Memory</span>
+              {storageStatus === 'ready' ? (
+                <span className="text-emerald-400">IndexedDB (Persistent)</span>
+              ) : storageStatus === 'unavailable' ? (
+                <span className="text-amber-400">Client Memory (IndexedDB Unavailable)</span>
+              ) : storageStatus === 'error' ? (
+                <span className="text-red-400">Client Memory (Storage Error)</span>
+              ) : (
+                <span className="text-slate-400">Checking Storage...</span>
+              )}
             </div>
           </div>
         </div>
