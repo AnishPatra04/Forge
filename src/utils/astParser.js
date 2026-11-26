@@ -219,9 +219,28 @@ export function extractAstMetadata(content, filename) {
         }
       },
 
+      // Dynamic import('./x') and CommonJS require('./x')
+      CallExpression(node) {
+        const line = node.loc?.start?.line || 1;
+        const firstArg = node.arguments?.[0];
+        if (!firstArg || firstArg.type !== 'StringLiteral' || !firstArg.value) return;
+
+        const isDynamicImport = node.callee?.type === 'Import';
+        const isRequire = node.callee?.type === 'Identifier' && node.callee.name === 'require';
+        if (!isDynamicImport && !isRequire) return;
+
+        imports.push({
+          name: firstArg.value,
+          source: firstArg.value,
+          line,
+          kind: isDynamicImport ? 'dynamic_import' : 'require',
+        });
+      },
+
       // 4. Export statements
       ExportNamedDeclaration(node) {
         const line = node.loc?.start?.line || 1;
+        const reexportSource = node.source?.value || '';
 
         if (node.declaration) {
           const decl = node.declaration;
@@ -252,7 +271,23 @@ export function extractAstMetadata(content, filename) {
                 type: 'named',
                 line: spec.loc?.start?.line || line,
               });
+              if (reexportSource) {
+                imports.push({
+                  name,
+                  source: reexportSource,
+                  line: spec.loc?.start?.line || line,
+                  isReexport: true,
+                });
+              }
             }
+          }
+          if (reexportSource && node.specifiers.length === 0) {
+            imports.push({
+              name: reexportSource,
+              source: reexportSource,
+              line,
+              isReexport: true,
+            });
           }
         }
       },
@@ -269,12 +304,21 @@ export function extractAstMetadata(content, filename) {
 
       ExportAllDeclaration(node) {
         const line = node.loc?.start?.line || 1;
+        const source = node.source?.value || '';
         exports.push({
           name: '*',
-          source: node.source?.value || '',
+          source,
           type: 'all',
           line,
         });
+        if (source) {
+          imports.push({
+            name: '*',
+            source,
+            line,
+            isReexport: true,
+          });
+        }
       },
     });
 
@@ -563,8 +607,131 @@ export function resolveRelativePath(importerDir = '', source = '') {
 }
 
 /**
- * Resolves file-to-file dependencies from import declarations for JS, JSX, TS, and TSX files.
- * Resolves relative imports against uploaded filenames, including common extensions and index files.
+ * Extracts lightweight import/dependency declarations for non-Babel languages
+ * (.py, .java, and package.json) without altering JS/TS AST metrics.
+ *
+ * @param {string} content
+ * @param {string} filePath
+ * @returns {Array<{ name: string, source: string, line: number, isModuleImport?: boolean }>}
+ */
+export function extractPolyglotImports(content = '', filePath = '') {
+  if (!content || typeof content !== 'string' || !filePath) return [];
+
+  const ext = getFileExtension(filePath).toLowerCase();
+  const baseName = filePath.split('/').pop()?.toLowerCase() || '';
+  const results = [];
+
+  if (ext === '.py') {
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const lineText = lines[i].trim();
+      const lineNum = i + 1;
+      if (!lineText || lineText.startsWith('#')) continue;
+
+      // from .sub.mod import A, B  OR  from pkg.mod import A
+      const fromMatch = lineText.match(/^from\s+(\.{1,3}[A-Za-z0-9_.]*|[A-Za-z_][A-Za-z0-9_.]*)\s+import\s+(.+)/);
+      if (fromMatch) {
+        const rawMod = fromMatch[1];
+        const rawNames = fromMatch[2].split(',').map((s) => s.trim().split(/\s+as\s+/)[0].trim()).filter(Boolean);
+        let source = rawMod;
+        let isRelative = false;
+
+        if (rawMod.startsWith('.')) {
+          isRelative = true;
+          const dotMatch = rawMod.match(/^(\.+)(.*)$/);
+          const dotCount = dotMatch ? dotMatch[1].length : 1;
+          const rest = dotMatch ? dotMatch[2].replace(/\./g, '/') : '';
+          const prefix = dotCount === 1 ? './' : '../'.repeat(dotCount - 1);
+          source = prefix + (rest || '__init__');
+        } else {
+          source = rawMod.replace(/\./g, '/');
+        }
+
+        const specName = rawNames[0] || rawMod;
+        results.push({
+          name: specName,
+          source,
+          rawSource: rawMod,
+          line: lineNum,
+          isRelativePath: isRelative,
+          isModuleImport: !isRelative,
+        });
+        continue;
+      }
+
+      // import os, sys  OR  import a.b as ab
+      const impMatch = lineText.match(/^import\s+(.+)/);
+      if (impMatch) {
+        const modules = impMatch[1]
+          .split(',')
+          .map((s) => s.trim().split(/\s+as\s+/)[0].trim())
+          .filter(Boolean);
+        for (const mod of modules) {
+          results.push({
+            name: mod.split('.').pop() || mod,
+            source: mod.replace(/\./g, '/'),
+            rawSource: mod,
+            line: lineNum,
+            isRelativePath: false,
+            isModuleImport: true,
+          });
+        }
+      }
+    }
+    return results;
+  }
+
+  if (ext === '.java') {
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const lineText = lines[i].trim();
+      const match = lineText.match(/^import\s+(?:static\s+)?([A-Za-z_][A-Za-z0-9_.*]*)\s*;/);
+      if (!match) continue;
+      const fqn = match[1];
+      const parts = fqn.split('.');
+      const shortName = parts[parts.length - 1] === '*' && parts.length > 1 ? parts[parts.length - 2] : parts[parts.length - 1];
+      results.push({
+        name: shortName,
+        source: fqn.replace(/\./g, '/'),
+        rawSource: fqn,
+        line: i + 1,
+        isRelativePath: false,
+        isModuleImport: true,
+      });
+    }
+    return results;
+  }
+
+  if (baseName === 'package.json') {
+    try {
+      const parsed = JSON.parse(content);
+      const depGroups = [parsed?.dependencies, parsed?.peerDependencies].filter(
+        (g) => g && typeof g === 'object'
+      );
+      for (const group of depGroups) {
+        for (const pkgName of Object.keys(group)) {
+          results.push({
+            name: pkgName,
+            source: pkgName,
+            rawSource: pkgName,
+            line: 1,
+            isRelativePath: false,
+            isExternalOnly: true,
+          });
+        }
+      }
+    } catch {
+      // Ignore malformed JSON gracefully
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Resolves file-to-file dependencies from import declarations across JS/TS, Python, Java, and manifest files.
+ * Resolves relative imports against uploaded paths (preferring exact paths over basename fallback),
+ * including common extensions and index files.
  * Stores dependency metadata on each file (resolved and unresolved imports).
  *
  * @param {Array} filesList - Array of file objects
@@ -575,21 +742,18 @@ export function resolveFileDependencies(filesList = []) {
     return filesList || [];
   }
 
-  const COMMON_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx', '.json', '.css', '.mjs', '.cjs'];
-  const INDEX_EXTENSIONS = ['/index.js', '/index.jsx', '/index.ts', '/index.tsx', '/index.json'];
+  const COMMON_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx', '.py', '.java', '.json', '.css', '.mjs', '.cjs'];
+  const INDEX_EXTENSIONS = ['/index.js', '/index.jsx', '/index.ts', '/index.tsx', '/__init__.py', '/index.json'];
 
-  // Lookup structures for fast path resolution.
-  // Phase 3E stores file.path (relative repo path like "src/components/Header.tsx")
-  // and file.name (basename like "Header.tsx"). We index by path so relative imports
-  // across subdirectories resolve correctly, with basename fallback for flat uploads.
   const fileByExactPath = new Map();
   const fileByBasename = new Map();
+  let hasSubdirectories = false;
 
   filesList.forEach((f) => {
     if (!f) return;
-    // Prefer file.path (relative path) over file.name (basename)
     const filePath = (f.path || f.name || '').replace(/\\/g, '/');
     if (!filePath) return;
+    if (filePath.includes('/')) hasSubdirectories = true;
 
     fileByExactPath.set(filePath, f);
     fileByExactPath.set(filePath.toLowerCase(), f);
@@ -605,7 +769,7 @@ export function resolveFileDependencies(filesList = []) {
     }
   });
 
-  function findTargetFile(targetPath) {
+  function findTargetFile(targetPath, { allowBasenameFallback = true } = {}) {
     if (!targetPath) return null;
 
     // 1. Exact match
@@ -619,23 +783,41 @@ export function resolveFileDependencies(filesList = []) {
       if (fileByExactPath.has(candidate.toLowerCase())) return fileByExactPath.get(candidate.toLowerCase());
     }
 
-    // 3. Try index files
+    // 3. Try index / package init files
     for (const idxExt of INDEX_EXTENSIONS) {
       const candidate = targetPath + idxExt;
       if (fileByExactPath.has(candidate)) return fileByExactPath.get(candidate);
       if (fileByExactPath.has(candidate.toLowerCase())) return fileByExactPath.get(candidate.toLowerCase());
     }
 
-    // 4. Fallback: match by basename if targetPath has subdirectories but uploaded files are stored flat
-    const targetBasename = targetPath.split('/').pop();
-    if (targetBasename) {
-      if (fileByBasename.has(targetBasename)) return fileByBasename.get(targetBasename)[0];
-      if (fileByBasename.has(targetBasename.toLowerCase())) return fileByBasename.get(targetBasename.toLowerCase())[0];
+    // 4. Suffix path match for workspace modules (e.g. Python `utils/auth` or Java `com/app/Service`)
+    if (targetPath.includes('/')) {
+      const lowerSuffix = '/' + targetPath.toLowerCase();
+      for (const [knownPath, targetFile] of fileByExactPath.entries()) {
+        const lowerKnown = knownPath.toLowerCase();
+        if (lowerKnown === targetPath.toLowerCase() || lowerKnown.endsWith(lowerSuffix)) {
+          return targetFile;
+        }
+        for (const ext of COMMON_EXTENSIONS) {
+          if (lowerKnown.endsWith(lowerSuffix + ext)) {
+            return targetFile;
+          }
+        }
+      }
+    }
 
-      for (const ext of COMMON_EXTENSIONS) {
-        const candidate = targetBasename + ext;
-        if (fileByBasename.has(candidate)) return fileByBasename.get(candidate)[0];
-        if (fileByBasename.has(candidate.toLowerCase())) return fileByBasename.get(candidate.toLowerCase())[0];
+    // 5. Fallback: match by basename only when uploaded files are flat (never cross-link nested dirs)
+    if (allowBasenameFallback && !hasSubdirectories) {
+      const targetBasename = targetPath.split('/').pop();
+      if (targetBasename) {
+        if (fileByBasename.has(targetBasename)) return fileByBasename.get(targetBasename)[0];
+        if (fileByBasename.has(targetBasename.toLowerCase())) return fileByBasename.get(targetBasename.toLowerCase())[0];
+
+        for (const ext of COMMON_EXTENSIONS) {
+          const candidate = targetBasename + ext;
+          if (fileByBasename.has(candidate)) return fileByBasename.get(candidate)[0];
+          if (fileByBasename.has(candidate.toLowerCase())) return fileByBasename.get(candidate.toLowerCase())[0];
+        }
       }
     }
 
@@ -646,8 +828,15 @@ export function resolveFileDependencies(filesList = []) {
   const reverseDepsMap = new Map();
 
   const filesWithDeps = filesList.map((file) => {
-    if (!file || !file.astMetadata || file.astMetadata.error) {
-      // Plain object (not array) for consistency across all code paths
+    if (!file) return file;
+
+    const normImporter = (file.path || file.name || '').replace(/\\/g, '/');
+    const hasAstImports = Boolean(file.astMetadata && !file.astMetadata.error);
+    const polyglotImports = !hasAstImports
+      ? extractPolyglotImports(file.content || '', normImporter)
+      : [];
+
+    if (!hasAstImports && polyglotImports.length === 0) {
       const emptyDeps = {
         resolved: [],
         unresolved: [],
@@ -668,7 +857,7 @@ export function resolveFileDependencies(filesList = []) {
     }
 
     // Group raw imports by source + line to avoid duplicate dependency entries
-    const rawImports = file.astMetadata.imports || [];
+    const rawImports = hasAstImports ? file.astMetadata.imports || [] : polyglotImports;
     const groupedImports = new Map();
 
     rawImports.forEach((imp) => {
@@ -677,7 +866,11 @@ export function resolveFileDependencies(filesList = []) {
       if (!groupedImports.has(key)) {
         groupedImports.set(key, {
           source: imp.source,
+          rawSource: imp.rawSource || imp.source,
           line: imp.line,
+          isRelativePath: imp.isRelativePath,
+          isModuleImport: Boolean(imp.isModuleImport),
+          isExternalOnly: Boolean(imp.isExternalOnly),
           specifiers: [],
         });
       }
@@ -686,10 +879,6 @@ export function resolveFileDependencies(filesList = []) {
       }
     });
 
-    // Use file.path (relative repo path like "src/components/Header.tsx") for directory
-    // resolution so imports across subdirectories work correctly. Fall back to file.name
-    // for flat local uploads where path === name.
-    const normImporter = (file.path || file.name || '').replace(/\\/g, '/');
     const importerDir = normImporter.includes('/')
       ? normImporter.substring(0, normImporter.lastIndexOf('/'))
       : '';
@@ -700,14 +889,15 @@ export function resolveFileDependencies(filesList = []) {
     groupedImports.forEach((impDecl) => {
       const source = impDecl.source;
       const isRelative =
+        impDecl.isRelativePath ||
         source.startsWith('./') ||
         source.startsWith('../') ||
         source === '.' ||
         source === '..';
 
-      if (!isRelative) {
+      if (impDecl.isExternalOnly || (!isRelative && !impDecl.isModuleImport)) {
         unresolved.push({
-          source,
+          source: impDecl.rawSource,
           line: impDecl.line,
           specifiers: impDecl.specifiers,
           type: 'external',
@@ -718,22 +908,23 @@ export function resolveFileDependencies(filesList = []) {
         return;
       }
 
-      const targetPath = resolveRelativePath(importerDir, source);
-      const matchedTarget = findTargetFile(targetPath);
+      const targetPath = isRelative ? resolveRelativePath(importerDir, source) : source;
+      const matchedTarget = findTargetFile(targetPath, {
+        allowBasenameFallback: isRelative,
+      });
 
-      if (matchedTarget) {
+      if (matchedTarget && (matchedTarget.id !== file.id || normImporter !== (matchedTarget.path || matchedTarget.name))) {
         const resolvedEntry = {
-          source,
+          source: impDecl.rawSource,
           resolvedFileId: matchedTarget.id,
           resolvedFileName: matchedTarget.name,
           resolvedFilePath: matchedTarget.path || matchedTarget.name,
           line: impDecl.line,
           specifiers: impDecl.specifiers,
-          isRelative: true,
+          isRelative,
         };
         resolved.push(resolvedEntry);
 
-        // Record reverse dependency
         if (matchedTarget.id) {
           if (!reverseDepsMap.has(matchedTarget.id)) {
             reverseDepsMap.set(matchedTarget.id, []);
@@ -746,9 +937,22 @@ export function resolveFileDependencies(filesList = []) {
             specifiers: impDecl.specifiers,
           });
         }
+      } else if (impDecl.isModuleImport && !isRelative) {
+        // External stdlib / third-party module (e.g. python `sqlalchemy`, `os`, java `java.util.*`)
+        const topPackage = (impDecl.rawSource || source).split('.')[0];
+        unresolved.push({
+          source: topPackage,
+          rawSource: impDecl.rawSource,
+          line: impDecl.line,
+          specifiers: impDecl.specifiers,
+          type: 'external',
+          isExternal: true,
+          isRelative: false,
+          reason: 'External package',
+        });
       } else {
         unresolved.push({
-          source,
+          source: impDecl.rawSource,
           targetPath,
           line: impDecl.line,
           specifiers: impDecl.specifiers,

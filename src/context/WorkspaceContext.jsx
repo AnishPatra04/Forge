@@ -14,6 +14,7 @@ import {
 import { chunkWorkspaceFiles } from '../utils/codeChunker.js';
 import { createBm25Index, performHybridSearch } from '../utils/hybridSearch.js';
 import { createVectorIndex, EMBEDDING_MODEL_ID } from '../utils/vectorIndex.js';
+import { analyzeCodebaseArchitecture } from '../utils/architectureAnalyzer.js';
 import { fetchGitHubRepository } from '../utils/githubClient.js';
 import { workspaceStorage } from '../utils/workspaceStorage.js';
 
@@ -233,19 +234,20 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
     setRestoreFailed(false);
 
     if (!hasUserMutatedRef.current && hasSavedData) {
+      const resolvedSavedFiles = savedFiles.length > 0 ? resolveFileDependencies(savedFiles) : [];
       latestStateRef.current = {
-        files: savedFiles,
+        files: resolvedSavedFiles,
         projectName: savedName,
         projectSource: savedSource,
       };
-      setFiles(savedFiles);
+      setFiles(resolvedSavedFiles);
       setProjectName(savedName);
       setProjectSource(savedSource);
-      if (savedFiles.length > 0) {
+      if (resolvedSavedFiles.length > 0) {
         addActivity(
           'session',
           'Restored Saved Workspace',
-          `Restored ${savedFiles.length} file${savedFiles.length === 1 ? '' : 's'} for "${savedName}" from IndexedDB.`
+          `Restored ${resolvedSavedFiles.length} file${resolvedSavedFiles.length === 1 ? '' : 's'} for "${savedName}" from IndexedDB.`
         );
       }
     }
@@ -1088,6 +1090,10 @@ const removeFile = useCallback(async (fileId) => {
     return calculateStructuralMetrics(files);
   }, [files]);
 
+  const architectureModel = useMemo(() => {
+    return analyzeCodebaseArchitecture(files, { projectName });
+  }, [files, projectName]);
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -1136,6 +1142,7 @@ const removeFile = useCallback(async (fileId) => {
         retryRestoreWorkspace,
         syncWorkspaceToStorage,
         structuralMetrics,
+        architectureModel,
         totalFunctions: structuralMetrics.totalFunctions,
         totalClasses: structuralMetrics.totalClasses,
         totalVariables: structuralMetrics.totalVariables,
