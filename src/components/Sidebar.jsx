@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard,
+  Network,
   FolderGit2,
   Activity,
   Settings2,
@@ -32,6 +33,13 @@ export function Sidebar({ isCollapsed = false, onToggle: _onToggle }) {
       icon: LayoutDashboard,
       badge: files.length > 0 ? `${files.length}` : null,
       desc: 'Active code exploration',
+    },
+    {
+      id: 'graph',
+      label: 'Project Graph',
+      icon: Network,
+      badge: null,
+      desc: 'Visual dependency graph',
     },
     {
       id: 'projects',

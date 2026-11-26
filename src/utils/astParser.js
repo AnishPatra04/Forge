@@ -531,3 +531,291 @@ export function performAstAwareSearch(filesList = [], query = '') {
   return { results, grandTotalMatches };
 }
 
+/**
+ * Resolves a relative import path against the importer's directory.
+ *
+ * @param {string} importerDir - Directory of the importing file (e.g. 'src/components')
+ * @param {string} source - Relative import path (e.g. '../context/WorkspaceContext')
+ * @returns {string} Normalized target path
+ */
+export function resolveRelativePath(importerDir = '', source = '') {
+  const normalizedSource = source.replace(/\\/g, '/');
+  const baseParts = importerDir ? importerDir.split('/').filter(Boolean) : [];
+  const sourceParts = normalizedSource.split('/').filter(Boolean);
+
+  for (const part of sourceParts) {
+    if (part === '.') {
+      continue;
+    } else if (part === '..') {
+      if (baseParts.length > 0) {
+        baseParts.pop();
+      }
+    } else {
+      baseParts.push(part);
+    }
+  }
+
+  return baseParts.join('/');
+}
+
+/**
+ * Resolves file-to-file dependencies from import declarations for JS, JSX, TS, and TSX files.
+ * Resolves relative imports against uploaded filenames, including common extensions and index files.
+ * Stores dependency metadata on each file (resolved and unresolved imports).
+ *
+ * @param {Array} filesList - Array of file objects
+ * @returns {Array} Array of file objects with attached `dependencies` metadata
+ */
+export function resolveFileDependencies(filesList = []) {
+  if (!Array.isArray(filesList) || filesList.length === 0) {
+    return filesList || [];
+  }
+
+  const COMMON_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx', '.json', '.css', '.mjs', '.cjs'];
+  const INDEX_EXTENSIONS = ['/index.js', '/index.jsx', '/index.ts', '/index.tsx', '/index.json'];
+
+  // Lookup structures for fast path resolution.
+  // Phase 3E stores file.path (relative repo path like "src/components/Header.tsx")
+  // and file.name (basename like "Header.tsx"). We index by path so relative imports
+  // across subdirectories resolve correctly, with basename fallback for flat uploads.
+  const fileByExactPath = new Map();
+  const fileByBasename = new Map();
+
+  filesList.forEach((f) => {
+    if (!f) return;
+    // Prefer file.path (relative path) over file.name (basename)
+    const filePath = (f.path || f.name || '').replace(/\\/g, '/');
+    if (!filePath) return;
+
+    fileByExactPath.set(filePath, f);
+    fileByExactPath.set(filePath.toLowerCase(), f);
+
+    const base = filePath.split('/').pop();
+    if (base) {
+      if (!fileByBasename.has(base)) fileByBasename.set(base, []);
+      fileByBasename.get(base).push(f);
+
+      const baseLower = base.toLowerCase();
+      if (!fileByBasename.has(baseLower)) fileByBasename.set(baseLower, []);
+      fileByBasename.get(baseLower).push(f);
+    }
+  });
+
+  function findTargetFile(targetPath) {
+    if (!targetPath) return null;
+
+    // 1. Exact match
+    if (fileByExactPath.has(targetPath)) return fileByExactPath.get(targetPath);
+    if (fileByExactPath.has(targetPath.toLowerCase())) return fileByExactPath.get(targetPath.toLowerCase());
+
+    // 2. Try common extensions
+    for (const ext of COMMON_EXTENSIONS) {
+      const candidate = targetPath + ext;
+      if (fileByExactPath.has(candidate)) return fileByExactPath.get(candidate);
+      if (fileByExactPath.has(candidate.toLowerCase())) return fileByExactPath.get(candidate.toLowerCase());
+    }
+
+    // 3. Try index files
+    for (const idxExt of INDEX_EXTENSIONS) {
+      const candidate = targetPath + idxExt;
+      if (fileByExactPath.has(candidate)) return fileByExactPath.get(candidate);
+      if (fileByExactPath.has(candidate.toLowerCase())) return fileByExactPath.get(candidate.toLowerCase());
+    }
+
+    // 4. Fallback: match by basename if targetPath has subdirectories but uploaded files are stored flat
+    const targetBasename = targetPath.split('/').pop();
+    if (targetBasename) {
+      if (fileByBasename.has(targetBasename)) return fileByBasename.get(targetBasename)[0];
+      if (fileByBasename.has(targetBasename.toLowerCase())) return fileByBasename.get(targetBasename.toLowerCase())[0];
+
+      for (const ext of COMMON_EXTENSIONS) {
+        const candidate = targetBasename + ext;
+        if (fileByBasename.has(candidate)) return fileByBasename.get(candidate)[0];
+        if (fileByBasename.has(candidate.toLowerCase())) return fileByBasename.get(candidate.toLowerCase())[0];
+      }
+    }
+
+    return null;
+  }
+
+  // Reverse dependencies tracking (targetFileId -> array of { fileId, fileName, filePath, line, specifiers })
+  const reverseDepsMap = new Map();
+
+  const filesWithDeps = filesList.map((file) => {
+    if (!file || !file.astMetadata || file.astMetadata.error) {
+      // Plain object (not array) for consistency across all code paths
+      const emptyDeps = {
+        resolved: [],
+        unresolved: [],
+        importedBy: [],
+        totalResolved: 0,
+        totalUnresolved: 0,
+      };
+      return {
+        ...file,
+        dependencies: emptyDeps,
+        importedBy: [],
+        resolvedImports: [],
+        unresolvedImports: [],
+        astMetadata: file.astMetadata
+          ? { ...file.astMetadata, dependencies: emptyDeps, importedBy: [] }
+          : null,
+      };
+    }
+
+    // Group raw imports by source + line to avoid duplicate dependency entries
+    const rawImports = file.astMetadata.imports || [];
+    const groupedImports = new Map();
+
+    rawImports.forEach((imp) => {
+      if (!imp || !imp.source) return;
+      const key = `${imp.source}:${imp.line}`;
+      if (!groupedImports.has(key)) {
+        groupedImports.set(key, {
+          source: imp.source,
+          line: imp.line,
+          specifiers: [],
+        });
+      }
+      if (imp.name && !groupedImports.get(key).specifiers.includes(imp.name)) {
+        groupedImports.get(key).specifiers.push(imp.name);
+      }
+    });
+
+    // Use file.path (relative repo path like "src/components/Header.tsx") for directory
+    // resolution so imports across subdirectories work correctly. Fall back to file.name
+    // for flat local uploads where path === name.
+    const normImporter = (file.path || file.name || '').replace(/\\/g, '/');
+    const importerDir = normImporter.includes('/')
+      ? normImporter.substring(0, normImporter.lastIndexOf('/'))
+      : '';
+
+    const resolved = [];
+    const unresolved = [];
+
+    groupedImports.forEach((impDecl) => {
+      const source = impDecl.source;
+      const isRelative =
+        source.startsWith('./') ||
+        source.startsWith('../') ||
+        source === '.' ||
+        source === '..';
+
+      if (!isRelative) {
+        unresolved.push({
+          source,
+          line: impDecl.line,
+          specifiers: impDecl.specifiers,
+          type: 'external',
+          isExternal: true,
+          isRelative: false,
+          reason: 'External package',
+        });
+        return;
+      }
+
+      const targetPath = resolveRelativePath(importerDir, source);
+      const matchedTarget = findTargetFile(targetPath);
+
+      if (matchedTarget) {
+        const resolvedEntry = {
+          source,
+          resolvedFileId: matchedTarget.id,
+          resolvedFileName: matchedTarget.name,
+          resolvedFilePath: matchedTarget.path || matchedTarget.name,
+          line: impDecl.line,
+          specifiers: impDecl.specifiers,
+          isRelative: true,
+        };
+        resolved.push(resolvedEntry);
+
+        // Record reverse dependency
+        if (matchedTarget.id) {
+          if (!reverseDepsMap.has(matchedTarget.id)) {
+            reverseDepsMap.set(matchedTarget.id, []);
+          }
+          reverseDepsMap.get(matchedTarget.id).push({
+            fileId: file.id,
+            fileName: file.name,
+            filePath: file.path || file.name,
+            line: impDecl.line,
+            specifiers: impDecl.specifiers,
+          });
+        }
+      } else {
+        unresolved.push({
+          source,
+          targetPath,
+          line: impDecl.line,
+          specifiers: impDecl.specifiers,
+          type: 'missing_relative',
+          isExternal: false,
+          isRelative: true,
+          reason: 'Missing relative file',
+        });
+      }
+    });
+
+    return {
+      ...file,
+      _rawResolved: resolved,
+      _rawUnresolved: unresolved,
+    };
+  });
+
+  // Attach dependencies & reverse dependencies (importedBy) to each file
+  return filesWithDeps.map((file) => {
+    const importedBy = reverseDepsMap.get(file.id) || [];
+
+    if (!file._rawResolved) {
+      // Non-AST or error files: build plain-object deps and attach final importedBy
+      const deps = {
+        resolved: [],
+        unresolved: [],
+        importedBy,
+        totalResolved: 0,
+        totalUnresolved: 0,
+      };
+      return {
+        ...file,
+        importedBy,
+        dependencies: deps,
+        astMetadata: file.astMetadata
+          ? { ...file.astMetadata, dependencies: deps, importedBy }
+          : null,
+      };
+    }
+
+    const resolved = file._rawResolved;
+    const unresolved = file._rawUnresolved;
+
+    // Plain-object dependencies structure (consistent with emptyDeps above)
+    const dependencies = {
+      resolved,
+      unresolved,
+      importedBy,
+      totalResolved: resolved.length,
+      totalUnresolved: unresolved.length,
+    };
+
+    const { _rawResolved, _rawUnresolved, ...cleanFile } = file;
+
+    return {
+      ...cleanFile,
+      dependencies,
+      importedBy,
+      resolvedImports: resolved,
+      unresolvedImports: unresolved,
+      astMetadata: cleanFile.astMetadata
+        ? {
+            ...cleanFile.astMetadata,
+            dependencies,
+            importedBy,
+            resolvedImports: resolved,
+            unresolvedImports: unresolved,
+          }
+        : null,
+    };
+  });
+}
+

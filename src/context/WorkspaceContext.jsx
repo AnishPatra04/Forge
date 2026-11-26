@@ -10,6 +10,7 @@ import {
   extractAstMetadata,
   calculateStructuralMetrics,
   performAstAwareSearch,
+  resolveFileDependencies,
 } from '../utils/astParser';
 import { fetchGitHubRepository } from '../utils/githubClient.js';
 import { workspaceStorage } from '../utils/workspaceStorage.js';
@@ -330,9 +331,11 @@ export function WorkspaceProvider({ children }) {
         projectSource: nextSource,
       };
       setFiles((prev) => {
-        const prevPaths = new Set(prev.map((f) => getFilePath(f)));
-        const filteredNew = validFiles.filter((f) => !prevPaths.has(getFilePath(f)));
-        return [...prev, ...filteredNew];
+        // Use normalized paths (file.path || file.name) for duplicate detection so files with
+        // identical basenames in different directories are not incorrectly discarded.
+        const existingPaths = new Set(prev.map((f) => f.path || f.name));
+        const filteredNew = validFiles.filter((f) => !existingPaths.has(f.path || f.name));
+        return resolveFileDependencies([...prev, ...filteredNew]);
       });
       if (wasEmpty) {
         setProjectSource(nextSource);
@@ -387,14 +390,17 @@ export function WorkspaceProvider({ children }) {
     await waitForRestore();
     hasUserMutatedRef.current = true;
 
-    const sampleFilesWithAst = SAMPLE_PROJECT_FILES.map((sample) => {
-      const samplePath = getFilePath(sample);
-      return {
-        ...sample,
-        path: samplePath,
-        astMetadata: extractAstMetadata(sample.content, samplePath),
-      };
-    });
+    const sampleFilesWithAst = resolveFileDependencies(
+      SAMPLE_PROJECT_FILES.map((sample) => {
+        const samplePath = getFilePath(sample);
+        return {
+          ...sample,
+          path: samplePath,
+          astMetadata: extractAstMetadata(sample.content, samplePath),
+        };
+      })
+    );
+
     const sampleName = 'Forge Core Engine (Sample)';
     const sampleSource = { type: 'sample' };
     const opRev = ++latestMutationRevRef.current;
@@ -404,6 +410,7 @@ export function WorkspaceProvider({ children }) {
       projectName: sampleName,
       projectSource: sampleSource,
     };
+
     setFiles(sampleFilesWithAst);
     setProjectName(sampleName);
     setProjectSource(sampleSource);
@@ -420,21 +427,32 @@ export function WorkspaceProvider({ children }) {
       projectSource: sampleSource,
     });
     handleStorageResult(res, 'Sample project', opRev, true);
-  }, [waitForRestore, addActivity, handleStorageResult]);
+  },
+  [waitForRestore, addActivity, handleStorageResult]
+);
 
-  const removeFile = useCallback(async (fileId) => {
-    const current = await waitForRestore();
-    const target = current.files.find((f) => f.id === fileId);
-    if (!target) return;
+const removeFile = useCallback(async (fileId) => {
+  const current = await waitForRestore();
+  const target = current.files.find((f) => f.id === fileId);
+  if (!target) return;
 
-    hasUserMutatedRef.current = true;
-    const opRev = ++latestMutationRevRef.current;
-    latestStateRef.current = {
-      ...current,
-      files: current.files.filter((f) => f.id !== fileId),
-    };
-    setFiles((prev) => prev.filter((f) => f.id !== fileId));
-    addActivity('remove', 'File Removed', `Removed ${target.path || target.name} from current workspace.`);
+  hasUserMutatedRef.current = true;
+  const opRev = ++latestMutationRevRef.current;
+  const remainingFiles = current.files.filter((f) => f.id !== fileId);
+  const resolvedRemainingFiles = resolveFileDependencies(remainingFiles);
+
+  latestStateRef.current = {
+    ...current,
+    files: resolvedRemainingFiles,
+  };
+
+  setFiles(resolvedRemainingFiles);
+
+  addActivity(
+    'remove',
+    'File Removed',
+    `Removed ${target.path || target.name} from current workspace.`
+  );
 
     if (selectedFile?.id === fileId) {
       setSelectedFile(null);
@@ -679,38 +697,60 @@ export function WorkspaceProvider({ children }) {
       const nextName = `${owner}/${repo}`;
       const nextSource = { type: 'github', owner, repo, branch: resolvedBranch, commitSha, repoUrl };
 
-      if (replaceWorkspace) {
-        const opRev = ++latestMutationRevRef.current;
-        latestStateRef.current = { files: stagedFiles, projectName: nextName, projectSource: nextSource };
-        setFiles(stagedFiles);
-        setProjectName(nextName);
-        setProjectSource(nextSource);
-        setSelectedFile(null);
-        setSearchResults(null);
-        setSearchQuery('');
+         if (replaceWorkspace) {
+      const opRev = ++latestMutationRevRef.current;
+      const resolvedFiles = resolveFileDependencies(stagedFiles);
 
-        const persistResult = await workspaceStorage.replaceWorkspace({
-          files: stagedFiles,
-          projectName: nextName,
-          projectSource: nextSource,
-        });
-        handleStorageResult(persistResult, 'GitHub repository import', opRev, true);
-      } else if (stagedFiles.length > 0) {
+      latestStateRef.current = {
+        files: resolvedFiles,
+        projectName: nextName,
+        projectSource: nextSource,
+      };
+
+      setFiles(resolvedFiles);
+      setProjectName(nextName);
+      setProjectSource(nextSource);
+      setSelectedFile(null);
+      setSearchResults(null);
+      setSearchQuery('');
+
+      const persistResult = await workspaceStorage.replaceWorkspace({
+        files: resolvedFiles,
+        projectName: nextName,
+        projectSource: nextSource,
+      });
+
+      handleStorageResult(
+        persistResult,
+        'GitHub repository import',
+        opRev,
+        true
+      );
+    } else if (stagedFiles.length > 0) {
         const currentPaths = new Set(commitBaseState.files.map((f) => getFilePath(f)));
         const filesToPersist = stagedFiles.filter((f) => !currentPaths.has(getFilePath(f)));
         duplicateCount += stagedFiles.length - filesToPersist.length;
 
         if (filesToPersist.length > 0 || wasEmpty) {
-          const opRev = ++latestMutationRevRef.current;
+               const opRev = ++latestMutationRevRef.current;
+
+          const nextFiles = resolveFileDependencies([
+            ...commitBaseState.files,
+            ...filesToPersist,
+          ]);
+
           latestStateRef.current = {
-            files: [...commitBaseState.files, ...filesToPersist],
+            files: nextFiles,
             projectName: wasEmpty ? nextName : commitBaseState.projectName,
             projectSource: wasEmpty ? nextSource : commitBaseState.projectSource,
           };
+
           setFiles((prev) => {
             const prevPaths = new Set(prev.map((f) => getFilePath(f)));
-            const uniqueStaged = stagedFiles.filter((f) => !prevPaths.has(getFilePath(f)));
-            return [...prev, ...uniqueStaged];
+            const uniqueStaged = stagedFiles.filter(
+              (f) => !prevPaths.has(getFilePath(f))
+            );
+            return resolveFileDependencies([...prev, ...uniqueStaged]);
           });
           if (wasEmpty) {
             setProjectName(nextName);
