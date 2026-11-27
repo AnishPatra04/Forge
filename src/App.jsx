@@ -5,6 +5,7 @@ import { Header } from './components/Header';
 import { WorkspaceView } from './views/WorkspaceView';
 import { ProjectGraphView } from './views/ProjectGraphView';
 import { ArchitectureView } from './views/ArchitectureView';
+import { InterviewView } from './views/InterviewView';
 import { ProjectsView } from './views/ProjectsView';
 import { ActivityView } from './views/ActivityView';
 import { SettingsView } from './views/SettingsView';
@@ -33,6 +34,7 @@ function AppContent() {
           {activeTab === 'workspace' && <WorkspaceView />}
           {activeTab === 'graph' && <ProjectGraphView />}
           {activeTab === 'architecture' && <ArchitectureView />}
+          {activeTab === 'interview' && <InterviewView />}
           {activeTab === 'projects' && <ProjectsView />}
           {activeTab === 'activity' && <ActivityView />}
           {activeTab === 'settings' && <SettingsView />}

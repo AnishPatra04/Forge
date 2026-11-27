@@ -9,6 +9,7 @@ export function Header({ isSidebarCollapsed = false, onToggleSidebar }) {
     workspace: 'Workspace',
     graph: 'Project Dependency Graph',
     architecture: 'Architecture Diagrams',
+    interview: 'Interview Prep',
     projects: 'Project Inventory',
     activity: 'Audit Activity Log',
     settings: 'Settings & Roadmap',

@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Folder,
   Layers,
+  BookOpen,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 
@@ -22,6 +23,7 @@ export function Sidebar({ isCollapsed = false, onToggle: _onToggle }) {
     projectName,
     files,
     architectureModel,
+    interviewPrep,
     activityLog,
     loadSampleProject,
     openPlaceholder,
@@ -52,6 +54,16 @@ export function Sidebar({ isCollapsed = false, onToggle: _onToggle }) {
           ? `${architectureModel.summary.totalModules}`
           : null,
       desc: 'System architecture diagrams',
+    },
+    {
+      id: 'interview',
+      label: 'Interview Prep',
+      icon: BookOpen,
+      badge:
+        files.length > 0 && interviewPrep?.summary?.totalQuestions > 0
+          ? `${interviewPrep.summary.totalQuestions}`
+          : null,
+      desc: 'Technical interview questions',
     },
     {
       id: 'projects',

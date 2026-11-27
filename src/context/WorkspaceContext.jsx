@@ -15,6 +15,7 @@ import { chunkWorkspaceFiles } from '../utils/codeChunker.js';
 import { createBm25Index, performHybridSearch } from '../utils/hybridSearch.js';
 import { createVectorIndex, EMBEDDING_MODEL_ID } from '../utils/vectorIndex.js';
 import { analyzeCodebaseArchitecture } from '../utils/architectureAnalyzer.js';
+import { generateInterviewQuestions } from '../utils/interviewGenerator.js';
 import { fetchGitHubRepository } from '../utils/githubClient.js';
 import { workspaceStorage } from '../utils/workspaceStorage.js';
 
@@ -1094,6 +1095,10 @@ const removeFile = useCallback(async (fileId) => {
     return analyzeCodebaseArchitecture(files, { projectName });
   }, [files, projectName]);
 
+  const interviewPrep = useMemo(() => {
+    return generateInterviewQuestions(files, architectureModel, { projectName });
+  }, [files, architectureModel, projectName]);
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -1143,6 +1148,7 @@ const removeFile = useCallback(async (fileId) => {
         syncWorkspaceToStorage,
         structuralMetrics,
         architectureModel,
+        interviewPrep,
         totalFunctions: structuralMetrics.totalFunctions,
         totalClasses: structuralMetrics.totalClasses,
         totalVariables: structuralMetrics.totalVariables,
