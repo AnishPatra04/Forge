@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard,
+  Bot,
   Network,
   FolderGit2,
   Activity,
@@ -37,6 +38,13 @@ export function Sidebar({ isCollapsed = false, onToggle: _onToggle }) {
       icon: LayoutDashboard,
       badge: files.length > 0 ? `${files.length}` : null,
       desc: 'Active code exploration',
+    },
+    {
+      id: 'assistant',
+      label: 'AI Assistant',
+      icon: Bot,
+      badge: 'RAG',
+      desc: 'Grounded codebase Q&A',
     },
     {
       id: 'graph',

@@ -1,21 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Copy, Check, FileCode, Hash, HardDrive } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { EXTENSION_CONFIG } from '../constants/fileTypes';
 
 export function CodeViewerModal() {
-  const { selectedFile, setSelectedFile } = useWorkspace();
+  const { selectedFile, setSelectedFile, selectedLineRange, setSelectedLineRange } = useWorkspace();
   const [copied, setCopied] = useState(false);
+  const firstHighlightedRef = useRef(null);
+
+  const handleClose = () => {
+    setSelectedFile(null);
+    setSelectedLineRange?.(null);
+  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         setSelectedFile(null);
+        setSelectedLineRange?.(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setSelectedFile]);
+  }, [setSelectedFile, setSelectedLineRange]);
+
+  useEffect(() => {
+    if (selectedFile && selectedLineRange?.startLine && firstHighlightedRef.current) {
+      firstHighlightedRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [selectedFile, selectedLineRange]);
 
   if (!selectedFile) return null;
 
@@ -87,7 +100,7 @@ export function CodeViewerModal() {
               )}
             </button>
             <button
-              onClick={() => setSelectedFile(null)}
+              onClick={handleClose}
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
               title="Close (Esc)"
             >
@@ -99,22 +112,50 @@ export function CodeViewerModal() {
         {/* Code Content Area with Line Numbers */}
         <div className="flex-1 overflow-auto bg-[#0a0c12] p-4 font-mono text-xs leading-relaxed">
           <div className="table w-full border-collapse">
-            {lines.map((line, index) => (
-              <div key={index} className="table-row hover:bg-slate-800/40 group">
-                <span className="table-cell select-none text-right pr-4 pl-2 text-slate-400 font-mono text-[11px] w-12 align-top group-hover:text-slate-400">
-                  {index + 1}
-                </span>
-                <span className="table-cell whitespace-pre text-slate-300 pl-3 border-l border-slate-800/80 break-all font-mono">
-                  {line || ' '}
-                </span>
-              </div>
-            ))}
+            {lines.map((line, index) => {
+              const lineNum = index + 1;
+              const isHighlighted =
+                Boolean(selectedLineRange?.startLine) &&
+                lineNum >= selectedLineRange.startLine &&
+                lineNum <= (selectedLineRange.endLine || selectedLineRange.startLine);
+              const isFirstHighlighted =
+                Boolean(selectedLineRange?.startLine) && lineNum === selectedLineRange.startLine;
+
+              return (
+                <div
+                  key={index}
+                  ref={isFirstHighlighted ? firstHighlightedRef : null}
+                  className={`table-row group ${
+                    isHighlighted
+                      ? 'bg-indigo-500/15 hover:bg-indigo-500/20'
+                      : 'hover:bg-slate-800/40'
+                  }`}
+                >
+                  <span
+                    className={`table-cell select-none text-right pr-4 pl-2 font-mono text-[11px] w-12 align-top ${
+                      isHighlighted
+                        ? 'text-indigo-300 font-semibold border-l-2 border-indigo-400'
+                        : 'text-slate-400 group-hover:text-slate-300'
+                    }`}
+                  >
+                    {lineNum}
+                  </span>
+                  <span className="table-cell whitespace-pre text-slate-300 pl-3 border-l border-slate-800/80 break-all font-mono">
+                    {line || ' '}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* Footer */}
         <div className="px-5 py-2.5 border-t border-slate-800 bg-[#11131c] flex items-center justify-between text-[11px] text-slate-400 font-mono">
-          <span>Client-side in-memory representation</span>
+          <span>
+            {selectedLineRange?.startLine
+              ? `Highlighted lines L${selectedLineRange.startLine}-L${selectedLineRange.endLine || selectedLineRange.startLine}`
+              : 'Client-side in-memory representation'}
+          </span>
           <span>Press ESC to close</span>
         </div>
       </div>
