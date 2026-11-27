@@ -11,6 +11,7 @@ export function Header({ isSidebarCollapsed = false, onToggleSidebar }) {
     graph: 'Project Dependency Graph',
     architecture: 'Architecture Diagrams',
     interview: 'Interview Prep',
+    tests: 'Test Case Generator',
     projects: 'Project Inventory',
     activity: 'Audit Activity Log',
     settings: 'Settings & Roadmap',

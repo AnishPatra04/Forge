@@ -16,6 +16,7 @@ import { createBm25Index, performHybridSearch } from '../utils/hybridSearch.js';
 import { createVectorIndex, EMBEDDING_MODEL_ID } from '../utils/vectorIndex.js';
 import { analyzeCodebaseArchitecture } from '../utils/architectureAnalyzer.js';
 import { generateInterviewQuestions } from '../utils/interviewGenerator.js';
+import { generateTestSuitePlan } from '../utils/testGenerator.js';
 import { fetchGitHubRepository } from '../utils/githubClient.js';
 import { workspaceStorage } from '../utils/workspaceStorage.js';
 import {
@@ -108,6 +109,21 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
     assistantMessagesRef.current = assistantMessages;
   }, [assistantMessages]);
 
+  // Task E: Test Case Generation session state (kept in memory, never stored in IndexedDB)
+  const [testSuiteResult, setTestSuiteResult] = useState(null);
+  const [isGeneratingTests, setIsGeneratingTests] = useState(false);
+  const [testGenerationError, setTestGenerationError] = useState(null);
+  const [testReviewState, setTestReviewState] = useState({});
+  const testGenerationSeqRef = useRef(0);
+
+  const invalidateTestSuite = useCallback(() => {
+    testGenerationSeqRef.current += 1;
+    setIsGeneratingTests(false);
+    setTestSuiteResult(null);
+    setTestGenerationError(null);
+    setTestReviewState({});
+  }, []);
+
   const getVectorIndex = useCallback(() => {
     if (!vectorIndexRef.current) {
       vectorIndexRef.current = vectorIndexFactory();
@@ -131,6 +147,7 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
     setIsAssistantLoading(false);
     setAssistantError(null);
     setSelectedLineRange(null);
+    invalidateTestSuite();
 
     if (vectorIndexRef.current) {
       vectorIndexRef.current.clear();
@@ -146,12 +163,13 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
     } else {
       setEmbeddingStatus(INITIAL_EMBEDDING_STATUS);
     }
-  }, []);
+  }, [invalidateTestSuite]);
 
   useEffect(() => {
     return () => {
       searchRequestSeqRef.current += 1;
       assistantRequestSeqRef.current += 1;
+      testGenerationSeqRef.current += 1;
       workspaceEpochRef.current += 1;
       if (assistantAbortControllerRef.current) {
         assistantAbortControllerRef.current.abort();
@@ -274,6 +292,7 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
 
     if (!hasUserMutatedRef.current && hasSavedData) {
       const resolvedSavedFiles = savedFiles.length > 0 ? resolveFileDependencies(savedFiles) : [];
+      invalidateTestSuite();
       latestStateRef.current = {
         files: resolvedSavedFiles,
         projectName: savedName,
@@ -300,7 +319,7 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
       }
     }
     return true;
-  }, [addActivity]);
+  }, [addActivity, invalidateTestSuite]);
 
   const retryRestoreWorkspace = useCallback(async () => {
     const result = await workspaceStorage.loadWorkspace();
@@ -426,6 +445,7 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
       const filesToPersist = validFiles.filter((f) => !currentPaths.has(getFilePath(f)));
 
       const opRev = ++latestMutationRevRef.current;
+      invalidateTestSuite();
       latestStateRef.current = {
         files: [...postRead.files, ...filesToPersist],
         projectName: postRead.projectName,
@@ -485,7 +505,7 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
       duplicateCount: duplicatePaths.length,
       skippedCount: skippedFiles.length,
     };
-  }, [waitForRestore, addActivity, handleStorageResult]);
+  }, [waitForRestore, addActivity, handleStorageResult, invalidateTestSuite]);
 
   const loadSampleProject = useCallback(async () => {
     await waitForRestore();
@@ -549,6 +569,7 @@ const removeFile = useCallback(async (fileId) => {
   };
 
   getVectorIndex().removeFile(fileId);
+  invalidateTestSuite();
   setFiles(resolvedRemainingFiles);
 
   addActivity(
@@ -568,7 +589,7 @@ const removeFile = useCallback(async (fileId) => {
 
     const res = await workspaceStorage.removeFile(fileId);
     handleStorageResult(res, 'File removal', opRev, false);
-  }, [waitForRestore, getVectorIndex, addActivity, selectedFile, searchResults, handleStorageResult]);
+  }, [waitForRestore, getVectorIndex, addActivity, selectedFile, searchResults, handleStorageResult, invalidateTestSuite]);
 
   const clearAllFiles = useCallback(async () => {
     const current = await waitForRestore();
@@ -1032,6 +1053,7 @@ const removeFile = useCallback(async (fileId) => {
 
         if (filesToPersist.length > 0 || wasEmpty) {
                const opRev = ++latestMutationRevRef.current;
+          invalidateTestSuite();
 
           const nextFiles = resolveFileDependencies([
             ...commitBaseState.files,
@@ -1123,7 +1145,7 @@ const removeFile = useCallback(async (fileId) => {
       });
       return { success: false, error: err?.message };
     }
-  }, [waitForRestore, resetSearchAndVectorState, addActivity, handleStorageResult]);
+  }, [waitForRestore, resetSearchAndVectorState, addActivity, handleStorageResult, invalidateTestSuite]);
 
   const structuralMetrics = useMemo(() => {
     return calculateStructuralMetrics(files);
@@ -1341,6 +1363,142 @@ const removeFile = useCallback(async (fileId) => {
     [files, searchArtifacts, projectName, getVectorIndex, addActivity]
   );
 
+  const clearTestSuite = useCallback(() => {
+    invalidateTestSuite();
+  }, [invalidateTestSuite]);
+
+  const dismissTestGenerationError = useCallback(() => {
+    setTestGenerationError(null);
+  }, []);
+
+  const setTargetReviewStatus = useCallback(
+    (targetId, status, reviewNote = '') => {
+      if (!targetId || !status) return;
+      setTestReviewState((prev) => ({
+        ...prev,
+        [targetId]: {
+          ...(prev[targetId] || {}),
+          status,
+          reviewNote: typeof reviewNote === 'string' ? reviewNote : prev[targetId]?.reviewNote || '',
+        },
+      }));
+      if (status === 'approved') {
+        addActivity('session', 'Approved Test Draft', `Reviewed and approved test suite draft (${targetId}).`);
+      }
+    },
+    [addActivity]
+  );
+
+  const updateTargetDraftCode = useCallback((targetId, framework, code) => {
+    if (!targetId || !framework || typeof code !== 'string') return;
+    setTestReviewState((prev) => {
+      const existing = prev[targetId] || {};
+      return {
+        ...prev,
+        [targetId]: {
+          ...existing,
+          status: 'pending_review',
+          editedDrafts: {
+            ...(existing.editedDrafts || {}),
+            [framework]: code,
+          },
+        },
+      };
+    });
+  }, []);
+
+  const resetTargetDraft = useCallback((targetId, framework = null) => {
+    if (!targetId) return;
+    setTestReviewState((prev) => {
+      const existing = prev[targetId];
+      if (!existing) return prev;
+      if (!framework) {
+        const next = { ...prev };
+        delete next[targetId];
+        return next;
+      }
+      const nextEdited = { ...(existing.editedDrafts || {}) };
+      delete nextEdited[framework];
+      return {
+        ...prev,
+        [targetId]: {
+          ...existing,
+          status: 'pending_review',
+          editedDrafts: nextEdited,
+        },
+      };
+    });
+  }, []);
+
+  const generateProjectTests = useCallback(
+    async (options = {}) => {
+      if (!Array.isArray(files) || files.length === 0) {
+        invalidateTestSuite();
+        setTestGenerationError({
+          code: 'EMPTY_WORKSPACE',
+          message: 'Load a sample project, import local files, or connect a GitHub repository before generating test cases.',
+        });
+        return null;
+      }
+
+      const seq = ++testGenerationSeqRef.current;
+      const epochAtStart = workspaceEpochRef.current;
+      const fileSignature = files.map((f) => `${f.id}:${f.path || f.name}`).join('|');
+
+      setIsGeneratingTests(true);
+      setTestGenerationError(null);
+
+      try {
+        // Yield a microtask so UI can reflect loading state and concurrent workspace mutations can cancel stale runs
+        await Promise.resolve();
+
+        if (seq !== testGenerationSeqRef.current || epochAtStart !== workspaceEpochRef.current) {
+          return null;
+        }
+
+        const plan = generateTestSuitePlan(files, architectureModel, {
+          projectName,
+          ...options,
+        });
+
+        if (seq !== testGenerationSeqRef.current || epochAtStart !== workspaceEpochRef.current) {
+          return null;
+        }
+
+        setTestSuiteResult({
+          plan,
+          projectName,
+          projectSource,
+          workspaceEpoch: epochAtStart,
+          fileSignature,
+          generatedAt: new Date().toISOString(),
+        });
+        setTestReviewState({});
+
+        addActivity(
+          'session',
+          'Generated Draft Test Cases',
+          `Prepared ${plan.summary.totalScenarios} draft test scenarios across ${plan.summary.totalTargets} target(s) in "${projectName}" (awaiting review).`
+        );
+
+        return plan;
+      } catch (err) {
+        if (seq === testGenerationSeqRef.current && epochAtStart === workspaceEpochRef.current) {
+          setTestGenerationError({
+            code: 'GENERATION_FAILED',
+            message: err?.message || 'Failed to generate draft test cases.',
+          });
+        }
+        return null;
+      } finally {
+        if (seq === testGenerationSeqRef.current) {
+          setIsGeneratingTests(false);
+        }
+      }
+    },
+    [files, architectureModel, projectName, projectSource, invalidateTestSuite, addActivity]
+  );
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -1403,6 +1561,16 @@ const removeFile = useCallback(async (fileId) => {
         structuralMetrics,
         architectureModel,
         interviewPrep,
+        testSuiteResult,
+        isGeneratingTests,
+        testGenerationError,
+        testReviewState,
+        generateProjectTests,
+        clearTestSuite,
+        dismissTestGenerationError,
+        setTargetReviewStatus,
+        updateTargetDraftCode,
+        resetTargetDraft,
         totalFunctions: structuralMetrics.totalFunctions,
         totalClasses: structuralMetrics.totalClasses,
         totalVariables: structuralMetrics.totalVariables,

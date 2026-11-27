@@ -14,6 +14,7 @@ import {
   Folder,
   Layers,
   BookOpen,
+  FlaskConical,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 
@@ -25,6 +26,7 @@ export function Sidebar({ isCollapsed = false, onToggle: _onToggle }) {
     files,
     architectureModel,
     interviewPrep,
+    testSuiteResult,
     activityLog,
     loadSampleProject,
     openPlaceholder,
@@ -72,6 +74,16 @@ export function Sidebar({ isCollapsed = false, onToggle: _onToggle }) {
           ? `${interviewPrep.summary.totalQuestions}`
           : null,
       desc: 'Technical interview questions',
+    },
+    {
+      id: 'tests',
+      label: 'Test Cases',
+      icon: FlaskConical,
+      badge:
+        files.length > 0 && testSuiteResult?.plan?.summary?.totalTargets > 0
+          ? `${testSuiteResult.plan.summary.totalTargets}`
+          : null,
+      desc: 'Review-gated draft test suites',
     },
     {
       id: 'projects',
