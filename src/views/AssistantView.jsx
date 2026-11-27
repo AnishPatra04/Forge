@@ -35,7 +35,7 @@ function renderInlineTokens(text, sourcesById, onOpenSource) {
 
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
-        <strong key={idx} className="font-semibold text-slate-100">
+        <strong key={idx} className="font-semibold text-foreground">
           {part.slice(2, -2)}
         </strong>
       );
@@ -45,7 +45,7 @@ function renderInlineTokens(text, sourcesById, onOpenSource) {
       return (
         <code
           key={idx}
-          className="px-1.5 py-0.5 rounded bg-slate-800/90 border border-slate-700/70 text-indigo-300 font-mono text-[11px]"
+          className="px-1.5 py-0.5 rounded bg-secondary border border-border text-primary font-mono text-[11px]"
         >
           {part.slice(1, -1)}
         </code>
@@ -63,7 +63,7 @@ function renderInlineTokens(text, sourcesById, onOpenSource) {
             type="button"
             onClick={() => onOpenSource(sourceObj)}
             title={`Open ${sourceObj.filePath} (L${sourceObj.startLine}-L${sourceObj.endLine})`}
-            className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-[10px] font-mono font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-400/35 hover:bg-indigo-500/35 hover:text-white transition-colors cursor-pointer align-baseline"
+            className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-[10px] font-mono font-semibold bg-primary/15 text-primary border border-primary/35 hover:bg-primary/25 transition-colors cursor-pointer align-baseline"
           >
             {sourceId}
           </button>
@@ -95,7 +95,6 @@ function FormattedAnswer({ content, sources = [], onOpenSource }) {
     while (i < lines.length) {
       const line = lines[i];
 
-      // Fenced code block
       if (line.trim().startsWith('```')) {
         const lang = line.trim().slice(3).trim();
         const codeLines = [];
@@ -104,12 +103,11 @@ function FormattedAnswer({ content, sources = [], onOpenSource }) {
           codeLines.push(lines[i]);
           i++;
         }
-        i++; // skip closing fence
+        i++;
         result.push({ type: 'code', lang, text: codeLines.join('\n') });
         continue;
       }
 
-      // Headings
       const headingMatch = line.match(/^(#{1,3})\s+(.+)/);
       if (headingMatch) {
         result.push({
@@ -121,7 +119,6 @@ function FormattedAnswer({ content, sources = [], onOpenSource }) {
         continue;
       }
 
-      // Bullet or numbered list
       if (/^\s*([-*]|\d+\.)\s+/.test(line)) {
         const items = [];
         while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) {
@@ -137,7 +134,6 @@ function FormattedAnswer({ content, sources = [], onOpenSource }) {
         continue;
       }
 
-      // Paragraph
       const paraLines = [];
       while (
         i < lines.length &&
@@ -156,20 +152,20 @@ function FormattedAnswer({ content, sources = [], onOpenSource }) {
   }, [content]);
 
   return (
-    <div className="space-y-2.5 text-[13px] leading-relaxed text-slate-200 select-text">
+    <div className="space-y-2.5 text-[13px] leading-relaxed text-foreground/95 select-text">
       {blocks.map((block, idx) => {
         if (block.type === 'code') {
           return (
             <div
               key={idx}
-              className="rounded-lg bg-[#090b11] border border-slate-800 overflow-hidden my-2"
+              className="rounded-md bg-[#0E120F] border border-border overflow-hidden my-2"
             >
               {block.lang && (
-                <div className="px-3 py-1 bg-slate-900/80 border-b border-slate-800 text-[10px] font-mono text-slate-400 uppercase">
+                <div className="px-3 py-1 bg-muted border-b border-border text-[10px] font-mono text-muted-foreground uppercase">
                   {block.lang}
                 </div>
               )}
-              <pre className="p-3 overflow-x-auto text-xs font-mono text-slate-300 leading-relaxed">
+              <pre className="p-3 overflow-x-auto text-xs font-mono text-foreground/90 leading-relaxed">
                 <code>{block.text}</code>
               </pre>
             </div>
@@ -180,7 +176,7 @@ function FormattedAnswer({ content, sources = [], onOpenSource }) {
           return (
             <h4
               key={idx}
-              className={`font-semibold text-slate-100 pt-1 ${
+              className={`font-semibold text-foreground pt-1 ${
                 block.level === 1 ? 'text-sm' : 'text-[13px]'
               }`}
             >
@@ -191,9 +187,9 @@ function FormattedAnswer({ content, sources = [], onOpenSource }) {
 
         if (block.type === 'list') {
           return (
-            <ul key={idx} className="space-y-1.5 pl-4 list-disc marker:text-indigo-400">
+            <ul key={idx} className="space-y-1.5 pl-4 list-disc marker:text-primary">
               {block.items.map((item, itemIdx) => (
-                <li key={itemIdx} className="text-slate-200">
+                <li key={itemIdx} className="text-foreground/95">
                   {renderInlineTokens(item, sourcesById, onOpenSource)}
                 </li>
               ))}
@@ -202,7 +198,7 @@ function FormattedAnswer({ content, sources = [], onOpenSource }) {
         }
 
         return (
-          <p key={idx} className="text-slate-200">
+          <p key={idx} className="text-foreground/95">
             {renderInlineTokens(block.text, sourcesById, onOpenSource)}
           </p>
         );
@@ -215,7 +211,7 @@ function SourceCitationCard({ source, isCited, onOpenSource }) {
   const [expanded, setExpanded] = useState(false);
   const badgeStyle = EXTENSION_CONFIG[source.extension] || {
     label: source.extension || 'CODE',
-    color: 'text-slate-300 border-slate-700 bg-slate-800/60',
+    color: 'text-muted-foreground border-border bg-secondary',
   };
 
   const matchLabel =
@@ -227,10 +223,10 @@ function SourceCitationCard({ source, isCited, onOpenSource }) {
 
   return (
     <div
-      className={`rounded-lg border transition-colors overflow-hidden ${
+      className={`rounded-md border transition-colors overflow-hidden ${
         isCited
-          ? 'bg-indigo-950/20 border-indigo-500/35'
-          : 'bg-[#0c0e15] border-slate-800/90 hover:border-slate-700/80'
+          ? 'bg-primary/6 border-primary/35'
+          : 'bg-muted border-border hover:border-white/15'
       }`}
     >
       <div className="px-3 py-2 flex items-center justify-between gap-2">
@@ -238,8 +234,8 @@ function SourceCitationCard({ source, isCited, onOpenSource }) {
           <span
             className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold shrink-0 border ${
               isCited
-                ? 'bg-indigo-500/25 text-indigo-200 border-indigo-400/40'
-                : 'bg-slate-800 text-slate-300 border-slate-700'
+                ? 'bg-primary/20 text-primary border-primary/40'
+                : 'bg-secondary text-muted-foreground border-border'
             }`}
           >
             {source.id}
@@ -250,17 +246,17 @@ function SourceCitationCard({ source, isCited, onOpenSource }) {
             className="flex items-center gap-1.5 min-w-0 text-left group cursor-pointer"
             title={`Open ${source.filePath} at L${source.startLine}-L${source.endLine}`}
           >
-            <FileCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-            <span className="font-mono text-xs font-medium text-slate-100 group-hover:text-indigo-300 truncate">
+            <FileCode className="w-3.5 h-3.5 text-primary shrink-0" />
+            <span className="font-mono text-xs font-medium text-foreground group-hover:text-primary truncate">
               {source.fileName}
             </span>
             {source.filePath && source.filePath !== source.fileName && (
-              <span className="font-mono text-[10px] text-slate-400 truncate hidden sm:inline">
+              <span className="font-mono text-[10px] text-muted-foreground truncate hidden sm:inline">
                 ({source.filePath})
               </span>
             )}
           </button>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800 shrink-0">
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border shrink-0">
             L{source.startLine}-L{source.endLine}
           </span>
           <span
@@ -274,7 +270,7 @@ function SourceCitationCard({ source, isCited, onOpenSource }) {
           <button
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
-            className="px-2 py-1 rounded text-[10px] font-mono text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 flex items-center gap-1 transition-colors cursor-pointer"
+            className="px-2 py-1 rounded text-[10px] font-mono text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center gap-1 transition-colors cursor-pointer"
           >
             <span>Snippet</span>
             {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -282,7 +278,7 @@ function SourceCitationCard({ source, isCited, onOpenSource }) {
           <button
             type="button"
             onClick={() => onOpenSource(source)}
-            className="px-2 py-1 rounded text-[10px] font-mono text-indigo-300 hover:text-white bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-500/30 flex items-center gap-1 transition-colors cursor-pointer"
+            className="px-2 py-1 rounded text-[10px] font-mono text-primary hover:bg-primary/15 bg-primary/10 border border-primary/30 flex items-center gap-1 transition-colors cursor-pointer"
             title="Navigate to file in Code Viewer"
           >
             <span>Open</span>
@@ -292,16 +288,16 @@ function SourceCitationCard({ source, isCited, onOpenSource }) {
       </div>
 
       {expanded && (
-        <div className="border-t border-slate-800/80 bg-[#080a0f] px-3 py-2">
-          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 mb-1.5">
+        <div className="border-t border-border bg-[#0E120F] px-3 py-2">
+          <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground mb-1.5">
             <span>{source.filePath}</span>
             {source.symbolName && source.symbolName !== 'module' && (
-              <span className="text-indigo-300">
+              <span className="text-primary">
                 {source.symbolType}: {source.symbolName}
               </span>
             )}
           </div>
-          <pre className="text-[11px] font-mono text-slate-300 overflow-x-auto leading-relaxed whitespace-pre select-text">
+          <pre className="text-[11px] font-mono text-foreground/90 overflow-x-auto leading-relaxed whitespace-pre select-text">
             <code>{source.snippet}</code>
           </pre>
         </div>
@@ -376,17 +372,17 @@ export function AssistantView() {
   return (
     <div className="flex-1 flex flex-col h-full w-full overflow-hidden bg-background">
       {/* Top Status & Controls Bar */}
-      <div className="px-4 sm:px-6 py-3 border-b border-border bg-card/60 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 shrink-0">
+      <div className="px-4 sm:px-6 py-3 border-b border-border bg-sidebar flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="p-2 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 shrink-0">
+          <div className="p-1.5 rounded-md bg-secondary border border-border text-primary shrink-0">
             <Bot className="w-4 h-4" />
           </div>
           <div className="min-w-0">
             <h1 className="text-sm font-semibold text-foreground tracking-tight truncate">
               AI Codebase Assistant
             </h1>
-            <p className="text-[11px] text-muted-foreground font-mono truncate">
-              RAG • Hybrid Retrieval + Google Gemini ({projectName})
+            <p className="text-[11px] text-muted-foreground truncate">
+              Grounded RAG over <span className="font-mono text-foreground/85">{projectName}</span>
             </p>
           </div>
         </div>
@@ -396,10 +392,10 @@ export function AssistantView() {
           <div
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-mono ${
               semanticReady
-                ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300'
+                ? 'bg-success/10 border-success/25 text-success'
                 : isIndexingEmbeddings
-                  ? 'bg-indigo-500/10 border-indigo-500/25 text-indigo-300'
-                  : 'bg-amber-500/10 border-amber-500/25 text-amber-300'
+                  ? 'bg-primary/10 border-primary/25 text-primary'
+                  : 'bg-warning/10 border-warning/25 text-warning'
             }`}
             title="Active retrieval mode used for RAG context selection"
           >
@@ -426,8 +422,8 @@ export function AssistantView() {
               !assistantBackendStatus.checked
                 ? 'bg-secondary border-border text-muted-foreground'
                 : assistantBackendStatus.reachable && assistantBackendStatus.geminiConfigured
-                  ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300 hover:bg-emerald-500/15'
-                  : 'bg-amber-500/10 border-amber-500/25 text-amber-300 hover:bg-amber-500/15'
+                  ? 'bg-success/10 border-success/25 text-success hover:bg-success/15'
+                  : 'bg-warning/10 border-warning/25 text-warning hover:bg-warning/15'
             }`}
           >
             {assistantBackendStatus.reachable && assistantBackendStatus.geminiConfigured ? (
@@ -450,7 +446,7 @@ export function AssistantView() {
             <button
               type="button"
               onClick={clearAssistantConversation}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-secondary/60 hover:bg-accent text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-secondary hover:bg-accent text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               title="Clear session conversation"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -461,20 +457,20 @@ export function AssistantView() {
       </div>
 
       {/* Main Conversation Area */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5">
-        <div className="max-w-4xl mx-auto space-y-5">
-          {/* Backend Setup Banner (when backend offline or key missing) */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 forge-ambient-canvas">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Backend Setup Banner */}
           {assistantBackendStatus.checked &&
             (!assistantBackendStatus.reachable || !assistantBackendStatus.geminiConfigured) && (
-              <div className="p-3.5 rounded-xl bg-amber-950/25 border border-amber-500/30 text-xs text-amber-200 flex items-start gap-3">
-                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-md bg-warning/10 border border-warning/30 text-xs text-foreground flex items-start gap-3">
+                <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="font-semibold text-amber-100">
+                  <p className="font-semibold text-warning">
                     {!assistantBackendStatus.reachable
                       ? 'AI Assistant Backend Not Running'
                       : 'Gemini API Key Not Configured'}
                   </p>
-                  <p className="text-amber-200/85 leading-relaxed">
+                  <p className="text-muted-foreground leading-relaxed">
                     {!assistantBackendStatus.reachable
                       ? 'Start the Express backend server in a second terminal with `npm run server` (port 3001). Your hybrid search and local embeddings continue working offline.'
                       : 'Copy `.env.example` to `.env`, set `GEMINI_API_KEY` to a valid Google Gemini API key, and restart the backend server (`npm run server`).'}
@@ -484,24 +480,23 @@ export function AssistantView() {
             )}
 
           {files.length === 0 ? (
-            /* Empty Workspace State */
-            <div className="my-12 p-8 rounded-2xl bg-[#11131c] border border-slate-800/80 text-center space-y-4">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-400">
-                <Sparkles className="w-7 h-7" />
+            <div className="my-10 p-8 rounded-lg bg-card border border-border text-center space-y-4">
+              <div className="w-12 h-12 mx-auto rounded-lg bg-secondary border border-border flex items-center justify-center text-primary">
+                <Sparkles className="w-6 h-6" />
               </div>
               <div className="space-y-1.5">
-                <h2 className="text-base font-semibold text-slate-100">
+                <h2 className="text-base font-semibold text-foreground">
                   No Codebase Loaded Yet
                 </h2>
-                <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
                   Import local source files, load the built-in sample project, or ingest a public GitHub repository to ask grounded questions about your code.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+              <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
                 <button
                   type="button"
                   onClick={loadSampleProject}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-950/40 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-[#D2FA81] text-primary-foreground transition-colors cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Load Sample Codebase</span>
@@ -509,43 +504,41 @@ export function AssistantView() {
                 <button
                   type="button"
                   onClick={openGitHubModal}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium bg-secondary hover:bg-accent text-foreground border border-border transition-colors cursor-pointer"
                 >
-                  <FolderGit2 className="w-3.5 h-3.5 text-indigo-400" />
+                  <FolderGit2 className="w-3.5 h-3.5 text-primary" />
                   <span>Import from GitHub</span>
                 </button>
               </div>
             </div>
           ) : assistantMessages.length === 0 ? (
-            /* Welcome + Suggested Questions */
-            <div className="my-6 p-6 rounded-2xl bg-[#11131c] border border-slate-800/80 space-y-5">
-              <div className="flex items-start gap-3.5">
-                <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-600/20 border border-indigo-500/30 text-indigo-300 shrink-0">
-                  <Sparkles className="w-5 h-5" />
+            <div className="my-8 space-y-6">
+              <div className="space-y-2.5 max-w-2xl">
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/25 text-primary text-[11px] font-medium">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Grounded Codebase Intelligence</span>
                 </div>
-                <div className="space-y-1">
-                  <h2 className="text-sm font-semibold text-slate-100">
-                    Ask anything about {projectName}
-                  </h2>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    FORGE retrieves the most relevant code chunks from your {files.length} loaded file
-                    {files.length === 1 ? '' : 's'} using Hybrid Search (BM25 + AST + Local Embeddings) and generates grounded answers with clickable file and line citations.
-                  </p>
-                </div>
+                <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+                  Ask anything about {projectName}
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  FORGE retrieves relevant code across your {files.length} loaded file
+                  {files.length === 1 ? '' : 's'} using Hybrid Search (BM25 + AST + Local Embeddings) and generates answers grounded in clickable line citations.
+                </p>
               </div>
 
-              <div className="space-y-2">
-                <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold">
-                  Suggested Questions
+              <div className="space-y-2.5">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Suggested starting questions
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {suggestedQuestions.map((question, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => handleSuggestionClick(question)}
                       disabled={isAssistantLoading}
-                      className="p-3 rounded-xl bg-[#0c0e15] hover:bg-indigo-950/25 border border-slate-800 hover:border-indigo-500/40 text-left text-xs text-slate-300 hover:text-slate-100 transition-all cursor-pointer disabled:opacity-50"
+                      className="p-4 rounded-xl forge-card-3d text-left text-[13px] text-foreground/95 leading-snug cursor-pointer disabled:opacity-50"
                     >
                       {question}
                     </button>
@@ -554,20 +547,19 @@ export function AssistantView() {
               </div>
             </div>
           ) : (
-            /* Chat Message History */
             <div className="space-y-4">
               {assistantMessages.map((msg) => {
                 if (msg.role === 'user') {
                   return (
                     <div key={msg.id} className="flex justify-end">
-                      <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-indigo-600/20 border border-indigo-500/35 px-4 py-3 space-y-1">
-                        <div className="flex items-center justify-end gap-1.5 text-[10px] font-mono text-indigo-300/80">
+                      <div className="max-w-[85%] rounded-lg bg-secondary border border-primary/30 px-4 py-3 space-y-1">
+                        <div className="flex items-center justify-end gap-1.5 text-[10px] font-mono text-muted-foreground">
                           <span>You</span>
-                          <span>•</span>
+                          <span>·</span>
                           <span>{msg.timestamp}</span>
-                          <User className="w-3 h-3" />
+                          <User className="w-3 h-3 text-primary" />
                         </div>
-                        <p className="text-[13px] text-slate-100 whitespace-pre-wrap select-text leading-relaxed">
+                        <p className="text-[13px] text-foreground whitespace-pre-wrap select-text leading-relaxed">
                           {msg.content}
                         </p>
                       </div>
@@ -578,31 +570,31 @@ export function AssistantView() {
                 const citedSet = new Set(msg.citationsUsed || []);
                 return (
                   <div key={msg.id} className="flex justify-start">
-                    <div className="w-full rounded-2xl rounded-tl-sm bg-[#11131c] border border-slate-800/90 p-4 space-y-4 shadow-md">
+                    <div className="w-full rounded-lg bg-card border border-border p-4 space-y-4">
                       {/* Assistant Header */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800/70">
-                        <div className="flex items-center gap-2 text-[11px] font-mono text-slate-300">
-                          <Bot className="w-3.5 h-3.5 text-indigo-400" />
-                          <span className="font-semibold text-slate-100">FORGE Assistant</span>
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-border">
+                        <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
+                          <Bot className="w-3.5 h-3.5 text-primary" />
+                          <span className="font-sans font-semibold text-foreground">FORGE Assistant</span>
                           {msg.model && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary border border-border text-muted-foreground">
                               {msg.model}
                             </span>
                           )}
-                          <span className="text-slate-500">•</span>
-                          <span className="text-slate-400">{msg.timestamp}</span>
+                          <span>·</span>
+                          <span>{msg.timestamp}</span>
                         </div>
 
                         <span
                           className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
                             msg.semanticUsed
-                              ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25'
-                              : 'bg-amber-500/10 text-amber-300 border-amber-500/25'
+                              ? 'bg-success/10 text-success border-success/25'
+                              : 'bg-warning/10 text-warning border-warning/25'
                           }`}
                         >
                           {msg.semanticUsed
-                            ? 'Grounded via Hybrid (BM25 + Vector)'
-                            : 'Grounded via Lexical Fallback (BM25 + AST)'}
+                            ? 'Hybrid (BM25 + Vector)'
+                            : 'Lexical Fallback (BM25 + AST)'}
                         </span>
                       </div>
 
@@ -615,14 +607,14 @@ export function AssistantView() {
 
                       {/* Grounded Source Citations */}
                       {msg.sources && msg.sources.length > 0 && (
-                        <div className="pt-3 border-t border-slate-800/70 space-y-2">
-                          <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                        <div className="pt-3 border-t border-border space-y-2">
+                          <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
                             <span>
                               Sources Retrieved ({msg.sources.length})
-                              {citedSet.size > 0 ? ` • ${citedSet.size} directly cited` : ''}
+                              {citedSet.size > 0 ? ` · ${citedSet.size} directly cited` : ''}
                             </span>
-                            <span className="normal-case text-slate-500">
-                              Click any source to jump to code
+                            <span className="normal-case font-sans text-muted-foreground/80">
+                              Click any source to inspect code
                             </span>
                           </div>
                           <div className="space-y-1.5">
@@ -646,14 +638,14 @@ export function AssistantView() {
 
           {/* Non-blocking Loading Indicator */}
           {isAssistantLoading && (
-            <div className="p-4 rounded-2xl bg-[#11131c] border border-indigo-500/30 flex items-center justify-between gap-3">
+            <div className="p-3.5 rounded-lg bg-card border border-primary/35 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <Loader2 className="w-4 h-4 text-indigo-400 animate-spin shrink-0" />
+                <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
                 <div className="text-xs">
-                  <p className="font-medium text-slate-200">
+                  <p className="font-medium text-foreground">
                     Retrieving relevant code chunks & generating answer...
                   </p>
-                  <p className="text-[11px] text-slate-400 font-mono">
+                  <p className="text-[11px] text-muted-foreground">
                     You can switch tabs or cancel at any time.
                   </p>
                 </div>
@@ -661,9 +653,9 @@ export function AssistantView() {
               <button
                 type="button"
                 onClick={cancelAssistantRequest}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors cursor-pointer shrink-0"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-secondary hover:bg-accent text-foreground border border-border transition-colors cursor-pointer shrink-0"
               >
-                <StopCircle className="w-3.5 h-3.5 text-red-400" />
+                <StopCircle className="w-3.5 h-3.5 text-destructive" />
                 <span>Cancel</span>
               </button>
             </div>
@@ -671,20 +663,20 @@ export function AssistantView() {
 
           {/* Error Display */}
           {assistantError && (
-            <div className="p-3.5 rounded-xl bg-red-950/30 border border-red-500/35 text-xs text-red-200 flex items-start justify-between gap-3">
+            <div className="p-3.5 rounded-md bg-destructive/10 border border-destructive/35 text-xs text-foreground flex items-start justify-between gap-3">
               <div className="flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="font-semibold text-red-100">
+                  <p className="font-semibold text-destructive">
                     Assistant Error ({assistantError.code || 'ERROR'})
                   </p>
-                  <p className="text-red-200/90 leading-relaxed">{assistantError.message}</p>
+                  <p className="text-foreground/90 leading-relaxed">{assistantError.message}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={dismissAssistantError}
-                className="p-1 rounded hover:bg-red-500/20 text-red-300 cursor-pointer shrink-0"
+                className="p-1 rounded hover:bg-destructive/15 text-destructive cursor-pointer shrink-0"
                 aria-label="Dismiss error"
               >
                 <X className="w-3.5 h-3.5" />
@@ -697,9 +689,9 @@ export function AssistantView() {
       </div>
 
       {/* Bottom Chat Composer */}
-      <div className="px-4 sm:px-6 py-3.5 border-t border-border bg-card/70 backdrop-blur-md shrink-0">
+      <div className="px-4 sm:px-6 py-3 border-t border-border bg-sidebar shrink-0">
         <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
-          <div className="flex items-end gap-2.5 rounded-xl bg-[#0a0c12] border border-slate-800 focus-within:border-indigo-500/60 focus-within:ring-1 focus-within:ring-indigo-500/40 p-2 transition-all">
+          <div className="flex items-end gap-2 rounded-lg bg-[#0E120F] border border-border focus-within:border-primary p-2 transition-colors">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -711,12 +703,12 @@ export function AssistantView() {
                   ? 'Load a project to start asking questions...'
                   : 'Ask a question about your codebase (e.g., "How does authentication work?")...'
               }
-              className="flex-1 bg-transparent resize-none px-2 py-1.5 text-xs sm:text-[13px] text-slate-100 placeholder:text-slate-500 focus:outline-hidden max-h-32 overflow-y-auto disabled:opacity-50 select-text"
+              className="flex-1 bg-transparent resize-none px-2 py-1.5 text-xs sm:text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:outline-hidden max-h-32 overflow-y-auto disabled:opacity-50 select-text"
             />
             <button
               type="submit"
               disabled={!input.trim() || files.length === 0 || isAssistantLoading}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white transition-colors cursor-pointer disabled:cursor-not-allowed shrink-0"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-[#D2FA81] disabled:bg-secondary disabled:text-muted-foreground text-primary-foreground transition-colors cursor-pointer disabled:cursor-not-allowed shrink-0"
             >
               {isAssistantLoading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -726,8 +718,8 @@ export function AssistantView() {
               <span>Ask</span>
             </button>
           </div>
-          <div className="mt-1.5 flex items-center justify-between text-[10px] font-mono text-slate-500 px-1">
-            <span>Enter to send • Shift+Enter for new line</span>
+          <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground px-1">
+            <span>Enter to send · Shift+Enter for new line</span>
             <span>Answers are grounded strictly in retrieved workspace snippets</span>
           </div>
         </form>

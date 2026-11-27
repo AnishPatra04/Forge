@@ -6,16 +6,12 @@ import {
   Sparkles,
   Cpu,
   Layers,
-  Terminal,
   ExternalLink,
-  ShieldCheck,
-  FileCode,
-  HardDrive,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 
 export function SettingsView() {
-  const { files, projectName, storageStatus } = useWorkspace();
+  const { files, storageStatus } = useWorkspace();
 
   const totalLines = files.reduce((acc, f) => acc + f.lineCount, 0);
   const totalSizeBytes = files.reduce((acc, f) => acc + f.size, 0);
@@ -23,177 +19,164 @@ export function SettingsView() {
 
   const featuresComparison = [
     {
-      category: 'Code Ingestion & Filesystem',
+      category: 'Code Ingestion & Persistence',
       implemented: [
         'Client-side multi-file parser (.js, .jsx, .ts, .tsx, .py, .java, .html, .css, .json, .md)',
-        'In-memory file store with safe sandboxing',
-        'Direct file removal & workspace selection reset',
-        'Interactive code inspector with line numbering and clipboard copy',
+        'Public GitHub repository ingestion with branch selection and path preservation',
+        'IndexedDB workspace and embedding cache persistence',
+        'Interactive code viewer with line numbering, highlighting, and clipboard copy',
       ],
       planned: [
-        'Directory tree recursive walking (Milestone 2)',
-        'Direct GitHub repository cloning via API token (Milestone 2)',
-        'Local file watching with automatic hot reload (Milestone 2)',
+        'Multi-workspace project switching',
+        'Authenticated private repository sync',
+        'Local filesystem watcher integration',
       ],
     },
     {
-      category: 'Search & Understanding',
+      category: 'Structural Analysis & Hybrid Search',
       implemented: [
-        'Local keyword & token search engine',
-        'Line-by-line snippet extraction with context',
-        'Ranking matching files by keyword density',
-        'Zero-mock, honest empty state handling',
+        'Babel AST extraction (functions, classes, variables, imports, exports)',
+        'File-to-file dependency mapping and interactive Project Dependency Graph',
+        'Hybrid Search combining BM25, AST awareness, and local ONNX vector embeddings',
+        'Graceful lexical fallback when local embeddings are loading or unavailable',
       ],
       planned: [
-        'Abstract Syntax Tree (AST) symbol & dependency extraction (Milestone 2)',
-        'Local client-side vector embeddings with Wasm indexer (Milestone 2)',
-        'Full Semantic Search & hybrid lexical/dense retrieval (Milestone 2)',
+        'Cross-file call graph and symbol reference tracing',
+        'Configurable embedding model selection',
       ],
     },
     {
-      category: 'AI Assistant & Explanations',
+      category: 'AI Assistant & Code Review',
       implemented: [
-        'Honest local preview search interface',
-        'No mock LLM answers or fake generative hallucinations',
+        'Grounded RAG AI Assistant powered by Express + Google Gemini API',
+        'Clickable source citations with line-level Code Viewer navigation',
+        'AI Code Review across bugs, security, performance, quality, and maintainability',
+        'Single-file, function-scoped, and batched full-project code reviews',
       ],
       planned: [
-        'Configurable LLM provider integration (Claude, Gemini, OpenAI) (Milestone 3)',
-        'Retrieval-Augmented Generation (RAG) conversational codebase assistant (Milestone 3)',
-        'Technical interview question & test case generator (Milestone 3)',
+        'Automated test-case and PR summary generation',
+        'Exportable SARIF / Markdown code review reports',
       ],
     },
   ];
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#0c0d12] text-slate-200">
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+    <div className="flex-1 overflow-y-auto forge-ambient-canvas text-foreground">
+      <div className="max-w-5xl mx-auto px-6 py-7 space-y-7">
         {/* Header */}
-        <div className="border-b border-slate-800/80 pb-6">
-          <div className="flex items-center gap-2 mb-1.5">
-            <Settings2 className="w-4 h-4 text-indigo-400" />
-            <span className="text-xs font-mono uppercase tracking-wider text-slate-400">
+        <div className="border-b border-border pb-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Settings2 className="w-4 h-4 text-primary" />
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
               System Specifications
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-sans">
-            Product Settings & Roadmap
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+            Settings & Architecture
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Overview of FORGE architecture, runtime diagnostic information, and engineering roadmap.
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            Overview of FORGE architecture, runtime diagnostics, and engineering roadmap.
           </p>
         </div>
 
         {/* Product Identity & Status Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="p-5 rounded-xl bg-[#11131c] border border-slate-800/80">
-            <span className="text-[11px] font-mono text-slate-400 uppercase block mb-1">
-              Product Name
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 rounded-xl forge-panel">
+            <span className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
+              Product
             </span>
-            <div className="text-lg font-bold text-slate-100 font-sans">
-              FORGE
-            </div>
-            <p className="text-xs text-slate-400 mt-1 font-mono">
-              AI-Powered Codebase Assistant Workspace
+            <div className="text-base font-semibold text-foreground">FORGE</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              AI-Powered Codebase Intelligence Workspace
             </p>
           </div>
 
-          <div className="p-5 rounded-xl bg-[#11131c] border border-slate-800/80">
-            <span className="text-[11px] font-mono text-slate-400 uppercase block mb-1">
-              Current Milestone
+          <div className="p-4 rounded-xl forge-panel">
+            <span className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
+              Platform Release
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-emerald-400 font-sans">
-                Milestone 1 MVP
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="text-base font-semibold text-success">Phase 4 Integrated</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-success/10 text-success border border-success/25">
                 Active
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-1 font-mono">
-              Version 0.1.0-alpha
-            </p>
+            <p className="text-xs text-muted-foreground mt-1 font-mono">Version 0.1.0-alpha</p>
           </div>
 
-          <div className="p-5 rounded-xl bg-[#11131c] border border-slate-800/80">
-            <span className="text-[11px] font-mono text-slate-400 uppercase block mb-1">
+          <div className="p-4 rounded-xl forge-panel">
+            <span className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
               GitHub Repository
             </span>
             <a
               href="https://github.com/AnishPatra04/Forge"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-mono mt-0.5 truncate"
+              className="text-sm font-semibold text-primary hover:underline flex items-center gap-1 font-mono mt-0.5 truncate"
             >
               <span>AnishPatra04/Forge</span>
               <ExternalLink className="w-3.5 h-3.5 shrink-0" />
             </a>
-            <p className="text-xs text-slate-400 mt-1 font-mono">
-              Branch: main
-            </p>
+            <p className="text-xs text-muted-foreground mt-1 font-mono">Branch: main</p>
           </div>
         </div>
 
         {/* Project Description */}
-        <div className="p-6 rounded-xl bg-[#11131c] border border-slate-800/80 space-y-3">
-          <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-indigo-400" />
-            Project Description & Vision
+        <div className="p-5 rounded-xl forge-panel space-y-3">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            Architecture & Design Philosophy
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-            FORGE is being engineered as an intelligent codebase assistant designed to solve a fundamental
-            developer problem: navigating, grokking, and explaining complex, unfamiliar software architectures.
-            Through a staged delivery across three milestones, FORGE evolves from a lightweight, private
-            in-browser file explorer and keyword inspector into a sophisticated RAG-powered developer assistant.
+          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            FORGE combines client-side AST parsing, dependency graph visualization, local ONNX embeddings, and a grounded Google Gemini RAG backend so developers can inspect, search, question, and review unfamiliar codebases with verifiable line-level citations.
           </p>
-          <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/70 text-xs text-slate-400 leading-relaxed font-mono">
-            "FORGE treats your codebase as structured knowledge, bridging the gap between raw source files and deep semantic comprehension."
+          <div className="p-3 rounded-md bg-[#0E120F] border border-border text-xs text-muted-foreground leading-relaxed font-mono">
+            "FORGE treats your codebase as structured knowledge, bridging raw source files and grounded semantic comprehension."
           </div>
         </div>
 
         {/* Implemented vs Planned Features Matrix */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
-              <Layers className="w-4 h-4 text-indigo-400" />
-              Feature Implementation Matrix
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Layers className="w-4 h-4 text-primary" />
+              Capability Matrix
             </h2>
-            <span className="text-xs font-mono text-slate-400">Milestone 1 vs Future Milestones</span>
+            <span className="text-xs font-mono text-muted-foreground">Active vs Planned</span>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {featuresComparison.map((group, idx) => (
               <div
                 key={idx}
-                className="rounded-xl bg-[#11131c] border border-slate-800/80 overflow-hidden"
+                className="rounded-lg bg-card border border-border overflow-hidden"
               >
-                <div className="px-5 py-3 bg-slate-900/60 border-b border-slate-800 font-semibold text-xs text-slate-200">
+                <div className="px-4 py-2.5 bg-muted border-b border-border font-semibold text-xs text-foreground">
                   {group.category}
                 </div>
-                <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-                  {/* Implemented in Milestone 1 */}
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
                   <div>
-                    <div className="flex items-center gap-1.5 font-mono text-[11px] text-emerald-400 font-medium mb-3 uppercase tracking-wider">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Implemented in Current Milestone
+                    <div className="flex items-center gap-1.5 font-mono text-[10px] text-success font-medium mb-2.5 uppercase tracking-wider">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Implemented
                     </div>
                     <ul className="space-y-2">
                       {group.implemented.map((item, i) => (
-                        <li key={i} className="flex items-start gap-2 text-slate-300">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                        <li key={i} className="flex items-start gap-2 text-foreground/90">
+                          <span className="w-1.5 h-1.5 rounded-full bg-success mt-1.5 shrink-0" />
                           <span>{item}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
 
-                  {/* Planned for Milestone 2 & 3 */}
                   <div>
-                    <div className="flex items-center gap-1.5 font-mono text-[11px] text-indigo-400 font-medium mb-3 uppercase tracking-wider">
-                      <Clock className="w-3.5 h-3.5" /> Planned for Milestones 2 & 3
+                    <div className="flex items-center gap-1.5 font-mono text-[10px] text-primary font-medium mb-2.5 uppercase tracking-wider">
+                      <Clock className="w-3.5 h-3.5" /> Planned
                     </div>
                     <ul className="space-y-2">
                       {group.planned.map((item, i) => (
-                        <li key={i} className="flex items-start gap-2 text-slate-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-600 mt-1.5 shrink-0" />
+                        <li key={i} className="flex items-start gap-2 text-muted-foreground">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white/20 mt-1.5 shrink-0" />
                           <span>{item}</span>
                         </li>
                       ))}
@@ -206,34 +189,34 @@ export function SettingsView() {
         </div>
 
         {/* Runtime Diagnostics */}
-        <div className="p-5 rounded-xl bg-slate-900/40 border border-slate-800/70 text-xs space-y-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono flex items-center gap-2">
-            <Cpu className="w-3.5 h-3.5 text-indigo-400" />
-            Runtime Diagnostics & Sandbox Status
+        <div className="p-4 rounded-lg bg-muted border border-border text-xs space-y-3">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-mono flex items-center gap-2">
+            <Cpu className="w-3.5 h-3.5 text-primary" />
+            Runtime Diagnostics
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-[11px] text-slate-300">
-            <div className="p-2.5 rounded bg-slate-950/80 border border-slate-800">
-              <span className="text-slate-400 block text-[10px]">Loaded Files</span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-[11px] text-foreground">
+            <div className="p-2.5 rounded-md bg-[#0E120F] border border-border">
+              <span className="text-muted-foreground block text-[10px]">Loaded Files</span>
               <span>{files.length}</span>
             </div>
-            <div className="p-2.5 rounded bg-slate-950/80 border border-slate-800">
-              <span className="text-slate-400 block text-[10px]">Lines Scanned</span>
+            <div className="p-2.5 rounded-md bg-[#0E120F] border border-border">
+              <span className="text-muted-foreground block text-[10px]">Lines Scanned</span>
               <span>{totalLines.toLocaleString()} LOC</span>
             </div>
-            <div className="p-2.5 rounded bg-slate-950/80 border border-slate-800">
-              <span className="text-slate-400 block text-[10px]">Memory Allocated</span>
+            <div className="p-2.5 rounded-md bg-[#0E120F] border border-border">
+              <span className="text-muted-foreground block text-[10px]">Memory Footprint</span>
               <span>{totalSizeKb} KB</span>
             </div>
-            <div className="p-2.5 rounded bg-slate-950/80 border border-slate-800">
-              <span className="text-slate-400 block text-[10px]">Sandbox Environment</span>
+            <div className="p-2.5 rounded-md bg-[#0E120F] border border-border">
+              <span className="text-muted-foreground block text-[10px]">Persistence</span>
               {storageStatus === 'ready' ? (
-                <span className="text-emerald-400">IndexedDB (Persistent)</span>
+                <span className="text-success">IndexedDB Active</span>
               ) : storageStatus === 'unavailable' ? (
-                <span className="text-amber-400">Client Memory (IndexedDB Unavailable)</span>
+                <span className="text-warning">In-Memory Only</span>
               ) : storageStatus === 'error' ? (
-                <span className="text-red-400">Client Memory (Storage Error)</span>
+                <span className="text-destructive">Storage Error</span>
               ) : (
-                <span className="text-slate-400">Checking Storage...</span>
+                <span className="text-muted-foreground">Checking...</span>
               )}
             </div>
           </div>

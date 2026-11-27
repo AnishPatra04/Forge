@@ -54,6 +54,7 @@ export async function generateGeminiAnswer({
   contents,
   temperature = 0.2,
   maxOutputTokens = 2048,
+  responseMimeType = undefined,
 }) {
   const { apiKey, isConfigured, model, timeoutMs } = getGeminiConfig();
 
@@ -68,6 +69,12 @@ export async function generateGeminiAnswer({
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+  const generationConfig = {
+    temperature,
+    maxOutputTokens,
+    ...(responseMimeType ? { responseMimeType } : {}),
+  };
+
   let response;
   try {
     response = await fetch(endpoint, {
@@ -79,10 +86,7 @@ export async function generateGeminiAnswer({
       body: JSON.stringify({
         systemInstruction,
         contents,
-        generationConfig: {
-          temperature,
-          maxOutputTokens,
-        },
+        generationConfig,
       }),
       signal: controller.signal,
     });

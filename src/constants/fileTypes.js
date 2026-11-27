@@ -12,16 +12,16 @@ export const SUPPORTED_EXTENSIONS = [
 ];
 
 export const EXTENSION_CONFIG = {
-  '.js': { label: 'JavaScript', color: 'text-amber-400 border-amber-400/20 bg-amber-400/10' },
-  '.jsx': { label: 'React JSX', color: 'text-cyan-400 border-cyan-400/20 bg-cyan-400/10' },
-  '.ts': { label: 'TypeScript', color: 'text-blue-400 border-blue-400/20 bg-blue-400/10' },
-  '.tsx': { label: 'React TSX', color: 'text-sky-400 border-sky-400/20 bg-sky-400/10' },
-  '.java': { label: 'Java', color: 'text-red-400 border-red-400/20 bg-red-400/10' },
-  '.py': { label: 'Python', color: 'text-emerald-400 border-emerald-400/20 bg-emerald-400/10' },
-  '.html': { label: 'HTML', color: 'text-orange-400 border-orange-400/20 bg-orange-400/10' },
-  '.css': { label: 'CSS', color: 'text-indigo-400 border-indigo-400/20 bg-indigo-400/10' },
-  '.json': { label: 'JSON', color: 'text-yellow-400 border-yellow-400/20 bg-yellow-400/10' },
-  '.md': { label: 'Markdown', color: 'text-slate-300 border-slate-600/30 bg-slate-800/40' },
+  '.js': { label: 'JavaScript', color: 'text-[#E8B66D] border-[#E8B66D]/25 bg-[#E8B66D]/10' },
+  '.jsx': { label: 'React JSX', color: 'text-[#8CD1C4] border-[#8CD1C4]/25 bg-[#8CD1C4]/10' },
+  '.ts': { label: 'TypeScript', color: 'text-[#8CB8E8] border-[#8CB8E8]/25 bg-[#8CB8E8]/10' },
+  '.tsx': { label: 'React TSX', color: 'text-[#9CC8F0] border-[#9CC8F0]/25 bg-[#9CC8F0]/10' },
+  '.java': { label: 'Java', color: 'text-[#EF7777] border-[#EF7777]/25 bg-[#EF7777]/10' },
+  '.py': { label: 'Python', color: 'text-[#8CCB9A] border-[#8CCB9A]/25 bg-[#8CCB9A]/10' },
+  '.html': { label: 'HTML', color: 'text-[#E69D6E] border-[#E69D6E]/25 bg-[#E69D6E]/10' },
+  '.css': { label: 'CSS', color: 'text-[#B5A0E6] border-[#B5A0E6]/25 bg-[#B5A0E6]/10' },
+  '.json': { label: 'JSON', color: 'text-[#D4C77A] border-[#D4C77A]/25 bg-[#D4C77A]/10' },
+  '.md': { label: 'Markdown', color: 'text-[#929B91] border-white/10 bg-[#222922]' },
 };
 
 export const normalizeFilePath = (rawPath = '') => {

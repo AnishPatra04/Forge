@@ -41,22 +41,22 @@ export function CodeViewerModal() {
   const lines = selectedFile.content.split('\n');
   const badgeStyle = EXTENSION_CONFIG[selectedFile.extension] || {
     label: selectedFile.extension || 'TEXT',
-    color: 'text-slate-300 border-slate-700 bg-slate-800',
+    color: 'text-muted-foreground border-border bg-secondary',
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-[#0f1118] border border-slate-700/80 rounded-xl shadow-2xl w-full max-w-4xl max-h-[88vh] flex flex-col overflow-hidden text-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/75">
+      <div className="forge-dialog bg-card border border-white/14 rounded-xl shadow-[inset_0_1px_0_rgba(242,243,237,0.09),0_28px_70px_-15px_rgba(0,0,0,0.92)] w-full max-w-4xl max-h-[88vh] flex flex-col overflow-hidden text-foreground">
         {/* Header */}
-        <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-[#131620]">
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-sidebar">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shrink-0">
+            <div className="p-2 rounded-md bg-secondary border border-border text-primary shrink-0">
               <FileCode className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h3
-                  className="text-sm font-semibold text-slate-100 font-mono truncate"
+                  className="text-sm font-semibold text-foreground font-mono truncate"
                   title={selectedFile.path || selectedFile.name}
                 >
                   {selectedFile.path || selectedFile.name}
@@ -67,14 +67,14 @@ export function CodeViewerModal() {
                   {badgeStyle.label}
                 </span>
               </div>
-              <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono mt-0.5">
+              <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground font-mono mt-0.5">
                 <span className="flex items-center gap-1">
-                  <Hash className="w-3 h-3 text-slate-400" />
+                  <Hash className="w-3 h-3" />
                   {selectedFile.lineCount} lines
                 </span>
-                <span>•</span>
+                <span>·</span>
                 <span className="flex items-center gap-1">
-                  <HardDrive className="w-3 h-3 text-slate-400" />
+                  <HardDrive className="w-3 h-3" />
                   {(selectedFile.size / 1024).toFixed(1)} KB
                 </span>
               </div>
@@ -84,24 +84,24 @@ export function CodeViewerModal() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-secondary hover:bg-accent text-foreground border border-border transition-colors cursor-pointer"
               title="Copy file contents"
             >
               {copied ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">Copied</span>
+                  <Check className="w-3.5 h-3.5 text-success" />
+                  <span className="text-success">Copied</span>
                 </>
               ) : (
                 <>
-                  <Copy className="w-3.5 h-3.5 text-slate-400" />
+                  <Copy className="w-3.5 h-3.5 text-muted-foreground" />
                   <span>Copy</span>
                 </>
               )}
             </button>
             <button
               onClick={handleClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
               title="Close (Esc)"
             >
               <X className="w-4 h-4" />
@@ -110,7 +110,7 @@ export function CodeViewerModal() {
         </div>
 
         {/* Code Content Area with Line Numbers */}
-        <div className="flex-1 overflow-auto bg-[#0a0c12] p-4 font-mono text-xs leading-relaxed">
+        <div className="flex-1 overflow-auto bg-[#0E120F] p-4 font-mono text-xs leading-relaxed">
           <div className="table w-full border-collapse">
             {lines.map((line, index) => {
               const lineNum = index + 1;
@@ -127,20 +127,20 @@ export function CodeViewerModal() {
                   ref={isFirstHighlighted ? firstHighlightedRef : null}
                   className={`table-row group ${
                     isHighlighted
-                      ? 'bg-indigo-500/15 hover:bg-indigo-500/20'
-                      : 'hover:bg-slate-800/40'
+                      ? 'bg-primary/14 hover:bg-primary/18'
+                      : 'hover:bg-secondary/60'
                   }`}
                 >
                   <span
                     className={`table-cell select-none text-right pr-4 pl-2 font-mono text-[11px] w-12 align-top ${
                       isHighlighted
-                        ? 'text-indigo-300 font-semibold border-l-2 border-indigo-400'
-                        : 'text-slate-400 group-hover:text-slate-300'
+                        ? 'text-primary font-semibold border-l-2 border-primary'
+                        : 'text-muted-foreground/70 group-hover:text-muted-foreground'
                     }`}
                   >
                     {lineNum}
                   </span>
-                  <span className="table-cell whitespace-pre text-slate-300 pl-3 border-l border-slate-800/80 break-all font-mono">
+                  <span className="table-cell whitespace-pre text-foreground/90 pl-3 border-l border-border break-all font-mono select-text">
                     {line || ' '}
                   </span>
                 </div>
@@ -150,13 +150,13 @@ export function CodeViewerModal() {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-2.5 border-t border-slate-800 bg-[#11131c] flex items-center justify-between text-[11px] text-slate-400 font-mono">
+        <div className="px-4 py-2 border-t border-border bg-sidebar flex items-center justify-between text-[11px] text-muted-foreground font-mono">
           <span>
             {selectedLineRange?.startLine
-              ? `Highlighted lines L${selectedLineRange.startLine}-L${selectedLineRange.endLine || selectedLineRange.startLine}`
-              : 'Client-side in-memory representation'}
+              ? `Highlighted L${selectedLineRange.startLine}-L${selectedLineRange.endLine || selectedLineRange.startLine}`
+              : 'Read-only source inspector'}
           </span>
-          <span>Press ESC to close</span>
+          <span>ESC to close</span>
         </div>
       </div>
     </div>

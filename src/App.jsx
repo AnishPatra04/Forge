@@ -4,6 +4,8 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { WorkspaceView } from './views/WorkspaceView';
 import { AssistantView } from './views/AssistantView';
+import { CodeReviewView } from './views/CodeReviewView';
+import { ChangeImpactView } from './views/ChangeImpactView';
 import { ProjectGraphView } from './views/ProjectGraphView';
 import { ArchitectureView } from './views/ArchitectureView';
 import { InterviewView } from './views/InterviewView';
@@ -35,6 +37,8 @@ function AppContent() {
         <main className="flex-1 flex overflow-hidden">
           {activeTab === 'workspace' && <WorkspaceView />}
           {activeTab === 'assistant' && <AssistantView />}
+          {activeTab === 'review' && <CodeReviewView />}
+          {activeTab === 'impact' && <ChangeImpactView />}
           {activeTab === 'graph' && <ProjectGraphView />}
           {activeTab === 'architecture' && <ArchitectureView />}
           {activeTab === 'interview' && <InterviewView />}

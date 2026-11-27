@@ -3,20 +3,14 @@ import {
   Network,
   ZoomIn,
   ZoomOut,
-  Maximize2,
   RotateCcw,
   Search,
   X,
-  FileCode,
   ArrowRight,
   ArrowLeft,
   Sparkles,
-  Info,
-  ExternalLink,
   Layers,
-  Check,
   Eye,
-  Sliders,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { EXTENSION_CONFIG, getFileExtension } from '../constants/fileTypes';
@@ -43,12 +37,15 @@ function getNodeEdgeIntersection(cx, cy, tx, ty, width = NODE_WIDTH, height = NO
   };
 }
 
-export function ProjectGraphView() {
+export function ProjectGraphView({
+  impactOverlay = null,
+  embedded = false,
+  onOpenFileAtLine = null,
+} = {}) {
   const {
     files,
     loadSampleProject,
     setSelectedFile,
-    projectName,
   } = useWorkspace();
 
   const svgRef = useRef(null);
@@ -60,6 +57,26 @@ export function ProjectGraphView() {
   const [selectedNodeName, setSelectedNodeName] = useState(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [showLegend, setShowLegend] = useState(true);
+  const [focusImpactedOnly, setFocusImpactedOnly] = useState(false);
+
+  const isImpactActive = Boolean(impactOverlay?.active);
+  const impactEdgeSet = useMemo(
+    () => new Set(impactOverlay?.highlightedEdges || []),
+    [impactOverlay]
+  );
+
+  const getImpactStateForFile = useCallback(
+    (file) => {
+      if (!isImpactActive || !file || !impactOverlay?.nodeStates) return null;
+      return (
+        impactOverlay.nodeStates[file.id] ||
+        impactOverlay.nodeStates[file.path] ||
+        impactOverlay.nodeStates[file.name] ||
+        null
+      );
+    },
+    [isImpactActive, impactOverlay]
+  );
 
   // Node positions: { [fileName]: { x, y } }
   const [nodePositions, setNodePositions] = useState({});
@@ -298,6 +315,8 @@ export function ProjectGraphView() {
   const handleResetView = () => {
     setPan({ x: 0, y: 0 });
     setZoom(1);
+    setSelectedNodeName(null);
+    setFocusImpactedOnly(false);
     calculateLayout();
   };
 
@@ -373,7 +392,7 @@ export function ProjectGraphView() {
       if (e.target?.releasePointerCapture) {
         try {
           e.target.releasePointerCapture(e.pointerId);
-        } catch (_) {}
+        } catch {}
       }
     }
     if (isDraggingCanvas.current) {
@@ -381,7 +400,7 @@ export function ProjectGraphView() {
       if (svgRef.current?.releasePointerCapture) {
         try {
           svgRef.current.releasePointerCapture(e.pointerId);
-        } catch (_) {}
+        } catch {}
       }
     }
   };
@@ -405,6 +424,15 @@ export function ProjectGraphView() {
   // Overall statistics
   const totalConnected = files.filter((f) => !nodeMetadata.get(f.name)?.isIsolated).length;
   const totalIsolated = files.length - totalConnected;
+  const visibleFiles = useMemo(() => {
+    if (!isImpactActive || !focusImpactedOnly) return files;
+    const filtered = files.filter((f) => Boolean(getImpactStateForFile(f)));
+    return filtered.length > 0 ? filtered : files;
+  }, [files, isImpactActive, focusImpactedOnly, getImpactStateForFile]);
+  const visibleNameSet = useMemo(
+    () => new Set(visibleFiles.map((f) => f.name)),
+    [visibleFiles]
+  );
 
   return (
     <div
@@ -412,7 +440,11 @@ export function ProjectGraphView() {
       className="flex-1 flex flex-col h-full w-full overflow-hidden bg-background relative select-none"
     >
       {/* Top Toolbar */}
-      <div className="h-14 border-b border-border bg-card/60 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 z-20 gap-3">
+      <div
+        className={`${
+          embedded ? 'h-12 px-3 sm:px-4' : 'h-14 px-4 sm:px-6'
+        } border-b border-border bg-card/60 flex items-center justify-between shrink-0 z-20 gap-3`}
+      >
         {/* Left: View Title & Metrics */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center gap-2">
@@ -420,30 +452,38 @@ export function ProjectGraphView() {
               <Network className="w-4 h-4" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-sm font-semibold text-foreground tracking-tight">Project Dependency Graph</h1>
-              <p className="text-[10px] text-muted-foreground font-mono">
-                Visualizing file dependencies & architecture
-              </p>
+              <h1 className="text-sm font-semibold text-foreground tracking-tight">
+                {isImpactActive ? 'Change Impact Graph' : 'Project Dependency Graph'}
+              </h1>
+              {!embedded && (
+                <p className="text-[10px] text-muted-foreground font-mono">
+                  Visualizing file dependencies & architecture
+                </p>
+              )}
             </div>
           </div>
 
           {files.length > 0 && (
             <div className="flex items-center gap-2 text-xs font-mono">
               <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary border border-border text-foreground">
-                <span className="font-semibold text-primary">{files.length}</span>
+                <span className="font-semibold text-primary">{visibleFiles.length}</span>
                 <span className="text-muted-foreground">nodes</span>
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary border border-border text-foreground">
-                <span className="font-semibold text-indigo-400">{edges.length}</span>
+                <span className="font-semibold text-primary">{edges.length}</span>
                 <span className="text-muted-foreground">edges</span>
               </span>
-              <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                {totalConnected} connected
-              </span>
-              {totalIsolated > 0 && (
-                <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                  {totalIsolated} isolated
-                </span>
+              {!isImpactActive && (
+                <>
+                  <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] bg-success/10 text-success border border-success/25">
+                    {totalConnected} connected
+                  </span>
+                  {totalIsolated > 0 && (
+                    <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] bg-warning/10 text-warning border border-warning/25">
+                      {totalIsolated} isolated
+                    </span>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -473,6 +513,20 @@ export function ProjectGraphView() {
 
         {/* Right: Controls & Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {isImpactActive && (
+            <button
+              type="button"
+              onClick={() => setFocusImpactedOnly((prev) => !prev)}
+              className={`px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                focusImpactedOnly
+                  ? 'bg-primary/15 text-primary border-primary/35'
+                  : 'bg-secondary text-muted-foreground hover:text-foreground border-border'
+              }`}
+              title="Toggle between impacted components only and full workspace"
+            >
+              {focusImpactedOnly ? 'Show All' : 'Focus Impacted'}
+            </button>
+          )}
           <div className="flex items-center bg-secondary border border-border rounded-lg p-0.5 shadow-xs">
             <button
               onClick={handleZoomIn}
@@ -520,20 +574,22 @@ export function ProjectGraphView() {
       </div>
 
       {/* Main Interactive Canvas Area */}
-      <div className="flex-1 relative w-full h-full overflow-hidden bg-background">
+      <div className="flex-1 relative w-full h-full overflow-hidden forge-graph-stage">
         {files.length === 0 ? (
           /* Empty Workspace State */
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10">
-            <div className="w-16 h-16 rounded-2xl bg-secondary/80 border border-border flex items-center justify-center mb-4 text-muted-foreground">
-              <Network className="w-8 h-8 opacity-40 text-primary" />
+            <div className="w-16 h-16 rounded-xl forge-panel flex items-center justify-center mb-4 text-primary">
+              <Network className="w-7 h-7" />
             </div>
-            <h2 className="text-base font-semibold text-foreground mb-1">No Project Files Loaded</h2>
+            <h2 className="font-display text-lg font-semibold text-foreground mb-1.5">
+              No Project Files Loaded
+            </h2>
             <p className="text-xs text-muted-foreground max-w-sm mb-5 leading-relaxed">
-              Import project files or load the built-in sample codebase to visualize dependencies as an interactive directed graph.
+              Import project files or load the built-in sample codebase to explore file relationships in an interactive spatial dependency graph.
             </p>
             <button
               onClick={loadSampleProject}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20 transition-all cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-[#D2FA81] transition-colors cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
               <span>Load Sample Codebase</span>
@@ -548,9 +604,16 @@ export function ProjectGraphView() {
             onPointerUp={handlePointerUp}
             onWheel={handleWheel}
           >
-            {/* SVG Markers for Directed Arrows */}
+            {/* SVG Markers, Glow Filter & Spatial Grid */}
             <defs>
-              {/* Default edge arrow */}
+              <filter id="edge-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2.2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+
               <marker
                 id="arrow-default"
                 viewBox="0 0 10 10"
@@ -560,10 +623,9 @@ export function ProjectGraphView() {
                 markerHeight="6"
                 orient="auto-start-reverse"
               >
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#64748b" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#636D63" />
               </marker>
 
-              {/* Highlighted Outgoing Arrow (Files imported by selected) */}
               <marker
                 id="arrow-outgoing"
                 viewBox="0 0 10 10"
@@ -573,10 +635,9 @@ export function ProjectGraphView() {
                 markerHeight="7"
                 orient="auto-start-reverse"
               >
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#818cf8" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#C5F467" />
               </marker>
 
-              {/* Highlighted Incoming Arrow (Files that import selected) */}
               <marker
                 id="arrow-incoming"
                 viewBox="0 0 10 10"
@@ -586,10 +647,9 @@ export function ProjectGraphView() {
                 markerHeight="7"
                 orient="auto-start-reverse"
               >
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#34d399" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#8CCB9A" />
               </marker>
 
-              {/* Dimmed arrow */}
               <marker
                 id="arrow-dimmed"
                 viewBox="0 0 10 10"
@@ -599,12 +659,11 @@ export function ProjectGraphView() {
                 markerHeight="5"
                 orient="auto-start-reverse"
               >
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#334155" opacity="0.3" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#2E362E" opacity="0.35" />
               </marker>
 
-              {/* Canvas Grid Pattern */}
-              <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-                <circle cx="2" cy="2" r="1" fill="#334155" opacity="0.25" />
+              <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+                <circle cx="1.5" cy="1.5" r="1" fill="#465246" opacity="0.35" />
               </pattern>
             </defs>
 
@@ -616,18 +675,22 @@ export function ProjectGraphView() {
               {/* Edges Layer */}
               <g className="edges-layer">
                 {edges.map((edge) => {
+                  if (!visibleNameSet.has(edge.source) || !visibleNameSet.has(edge.target)) return null;
                   const sourcePos = nodePositions[edge.source];
                   const targetPos = nodePositions[edge.target];
                   if (!sourcePos || !targetPos) return null;
 
-                  // Selection highlighting logic
                   const isSelectedOutgoing = selectedNodeName === edge.source;
                   const isSelectedIncoming = selectedNodeName === edge.target;
                   const hasSelection = Boolean(selectedNodeName);
-                  const isHighlighted = isSelectedOutgoing || isSelectedIncoming;
-                  const isDimmed = hasSelection && !isHighlighted;
+                  const isImpactEdge = isImpactActive && impactEdgeSet.has(edge.id);
+                  const isHighlighted = hasSelection
+                    ? isSelectedOutgoing || isSelectedIncoming
+                    : isImpactEdge;
+                  const isDimmed = hasSelection
+                    ? !(isSelectedOutgoing || isSelectedIncoming)
+                    : isImpactActive && !isImpactEdge;
 
-                  // Compute intersection points on node boundaries so arrowheads rest cleanly at border
                   const startPoint = getNodeEdgeIntersection(
                     sourcePos.x,
                     sourcePos.y,
@@ -645,31 +708,34 @@ export function ProjectGraphView() {
                     sourcePos.y,
                     NODE_WIDTH,
                     NODE_HEIGHT,
-                    8 // Padding for arrow marker
+                    8
                   );
 
-                  // Marker and stroke styles
                   let markerUrl = 'url(#arrow-default)';
-                  let strokeColor = '#475569';
+                  let strokeColor = '#4F594F';
                   let strokeWidth = 1.5;
-                  let strokeDasharray = 'none';
 
                   if (isSelectedOutgoing) {
                     markerUrl = 'url(#arrow-outgoing)';
-                    strokeColor = '#818cf8';
-                    strokeWidth = 2.5;
+                    strokeColor = '#C5F467';
+                    strokeWidth = 2.2;
                   } else if (isSelectedIncoming) {
                     markerUrl = 'url(#arrow-incoming)';
-                    strokeColor = '#34d399';
-                    strokeWidth = 2.5;
+                    strokeColor = '#8CCB9A';
+                    strokeWidth = 2.2;
+                  } else if (isImpactEdge && !hasSelection) {
+                    markerUrl = 'url(#arrow-outgoing)';
+                    strokeColor = '#E8B66D';
+                    strokeWidth = 2.2;
                   } else if (isDimmed) {
                     markerUrl = 'url(#arrow-dimmed)';
-                    strokeColor = '#334155';
+                    strokeColor = '#272E28';
                     strokeWidth = 1;
                   }
 
                   return (
-                    <g key={edge.id} className="transition-all duration-150">
+                    <g key={edge.id}>
+                      {/* Base static path */}
                       <line
                         x1={startPoint.x}
                         y1={startPoint.y}
@@ -677,10 +743,23 @@ export function ProjectGraphView() {
                         y2={endPoint.y}
                         stroke={strokeColor}
                         strokeWidth={strokeWidth}
-                        strokeDasharray={strokeDasharray}
-                        strokeOpacity={isDimmed ? 0.2 : 0.85}
+                        strokeOpacity={isDimmed ? 0.18 : isHighlighted ? 0.45 : 0.78}
                         markerEnd={markerUrl}
+                        filter={isHighlighted ? 'url(#edge-glow)' : undefined}
                       />
+                      {/* Animated directional flow overlay on active dependency paths */}
+                      {isHighlighted && (
+                        <line
+                          x1={startPoint.x}
+                          y1={startPoint.y}
+                          x2={endPoint.x}
+                          y2={endPoint.y}
+                          stroke={strokeColor}
+                          strokeWidth={strokeWidth}
+                          strokeOpacity={0.95}
+                          className="forge-edge-animated"
+                        />
+                      )}
                     </g>
                   );
                 })}
@@ -688,9 +767,10 @@ export function ProjectGraphView() {
 
               {/* Nodes Layer */}
               <g className="nodes-layer">
-                {files.map((file) => {
+                {visibleFiles.map((file) => {
                   const pos = nodePositions[file.name] || { x: 0, y: 0 };
                   const meta = nodeMetadata.get(file.name);
+                  const impactState = getImpactStateForFile(file);
                   const isSelected = selectedNodeName === file.name;
                   const isOutgoingTarget =
                     selectedNodeName && selectedMeta?.resolvedDeps?.includes(file.name);
@@ -699,17 +779,29 @@ export function ProjectGraphView() {
 
                   const hasSelection = Boolean(selectedNodeName);
                   const isDirectlyConnected = isSelected || isOutgoingTarget || isIncomingSource;
-                  const isDimmed = hasSelection && !isDirectlyConnected;
+                  const isDimmed = hasSelection
+                    ? !isDirectlyConnected
+                    : isImpactActive && !impactState;
 
                   const isSearchMatch =
                     searchMatches.size > 0 && searchMatches.has(file.name);
 
-                  // File config
                   const ext = getFileExtension(file.name);
                   const extConfig = EXTENSION_CONFIG[ext] || {
                     label: ext.replace('.', '').toUpperCase() || 'FILE',
-                    color: 'text-slate-400 border-slate-600/30 bg-slate-800/40',
+                    color: 'text-muted-foreground border-white/10 bg-secondary',
                   };
+
+                  const impactCardClass =
+                    impactState?.state === 'target'
+                      ? 'bg-gradient-to-b from-[#263122] to-[#171E18] border-primary ring-2 ring-primary/35 shadow-[inset_0_1px_0_rgba(197,244,103,0.28),0_14px_28px_-10px_rgba(0,0,0,0.9)] z-30'
+                      : impactState?.state === 'high_risk'
+                        ? 'bg-gradient-to-b from-[#2E1E1E] to-[#1A1414] border-destructive ring-1 ring-destructive/35 z-20'
+                        : impactState?.state === 'medium_risk'
+                          ? 'bg-gradient-to-b from-[#2D261C] to-[#1A1713] border-warning ring-1 ring-warning/30 z-20'
+                          : impactState?.state === 'low_risk' || impactState?.state === 'related'
+                            ? 'bg-gradient-to-b from-[#1E2A22] to-[#161D18] border-success/75 z-20'
+                            : null;
 
                   return (
                     <g
@@ -722,22 +814,23 @@ export function ProjectGraphView() {
                         setSelectedNodeName((prev) => (prev === file.name ? null : file.name));
                       }}
                     >
-                      {/* Node Card SVG foreignObject for rich HTML/Tailwind styling */}
                       <foreignObject width={NODE_WIDTH} height={NODE_HEIGHT} className="overflow-visible">
                         <div
-                          className={`w-full h-full rounded-xl p-2 flex flex-col justify-between transition-all duration-150 select-none border backdrop-blur-md shadow-md ${
+                          className={`w-full h-full rounded-lg p-2.5 flex flex-col justify-between transition-all duration-200 select-none border ${
                             isSelected
-                              ? 'bg-card border-primary ring-2 ring-primary/40 shadow-xl shadow-primary/25 scale-105 z-30'
+                              ? 'bg-gradient-to-b from-[#263122] to-[#171E18] border-primary ring-2 ring-primary/35 shadow-[inset_0_1px_0_rgba(197,244,103,0.3),0_18px_36px_-10px_rgba(0,0,0,0.95),0_0_24px_-6px_rgba(197,244,103,0.28)] scale-[1.06] z-30'
+                              : impactCardClass
+                              ? impactCardClass
                               : isOutgoingTarget
-                              ? 'bg-card border-indigo-400 ring-2 ring-indigo-400/30 shadow-lg shadow-indigo-500/20 z-20'
+                              ? 'bg-gradient-to-b from-[#232D22] to-[#171D18] border-primary/70 ring-1 ring-primary/25 shadow-[inset_0_1px_0_rgba(197,244,103,0.18),0_14px_26px_-12px_rgba(0,0,0,0.9)] z-20'
                               : isIncomingSource
-                              ? 'bg-card border-emerald-400 ring-2 ring-emerald-400/30 shadow-lg shadow-emerald-500/20 z-20'
+                              ? 'bg-gradient-to-b from-[#1E2A22] to-[#161D18] border-success/75 ring-1 ring-success/25 shadow-[inset_0_1px_0_rgba(140,203,154,0.2),0_14px_26px_-12px_rgba(0,0,0,0.9)] z-20'
                               : isSearchMatch
-                              ? 'bg-card border-amber-400 ring-2 ring-amber-400/40 shadow-lg shadow-amber-500/20'
+                              ? 'bg-card border-warning ring-2 ring-warning/35 shadow-lg z-20'
                               : meta?.isIsolated
-                              ? 'bg-card/70 border-border/60 border-dashed text-muted-foreground'
-                              : 'bg-card/90 border-border hover:border-border/80 hover:bg-card text-foreground'
-                          } ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
+                              ? 'bg-[#131714]/85 border-white/10 border-dashed text-muted-foreground hover:border-white/20'
+                              : 'forge-card-3d text-foreground'
+                          } ${isDimmed ? 'opacity-25' : 'opacity-100'}`}
                         >
                           {/* Top Row: File Name & Extension Badge */}
                           <div className="flex items-center justify-between gap-1.5 min-w-0">
@@ -759,12 +852,12 @@ export function ProjectGraphView() {
                             <div className="flex items-center gap-1.5">
                               {meta?.isIsolated ? (
                                 <span className="flex items-center gap-1 text-muted-foreground/70 text-[9px]">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60" />
                                   <span>isolated</span>
                                 </span>
                               ) : (
-                                <span className="flex items-center gap-1 text-emerald-400 text-[9px]">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                <span className="flex items-center gap-1 text-success text-[9px]">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-success" />
                                   <span>connected</span>
                                 </span>
                               )}
@@ -773,7 +866,7 @@ export function ProjectGraphView() {
                             <div className="flex items-center gap-1.5 text-[9px]">
                               {/* Outgoing (depends on) */}
                               <span
-                                className="flex items-center gap-0.5 text-indigo-400"
+                                className="flex items-center gap-0.5 text-primary"
                                 title={`${meta?.resolvedDeps.length || 0} dependencies imported by this file`}
                               >
                                 <ArrowRight className="w-2.5 h-2.5" />
@@ -782,7 +875,7 @@ export function ProjectGraphView() {
 
                               {/* Incoming (imported by) */}
                               <span
-                                className="flex items-center gap-0.5 text-emerald-400"
+                                className="flex items-center gap-0.5 text-success"
                                 title={`Imported by ${meta?.importers.length || 0} files`}
                               >
                                 <ArrowLeft className="w-2.5 h-2.5" />
@@ -802,9 +895,9 @@ export function ProjectGraphView() {
 
         {/* Legend Overlay Card */}
         {showLegend && files.length > 0 && (
-          <div className="absolute bottom-4 left-4 p-3 rounded-xl bg-card/90 backdrop-blur-md border border-border shadow-lg z-20 text-xs font-mono space-y-2 max-w-xs">
+          <div className="absolute bottom-4 left-4 p-3 rounded-lg bg-card/95 border border-border shadow-lg z-20 text-xs font-mono space-y-2 max-w-xs">
             <div className="flex items-center justify-between pb-1 border-b border-border/60 text-[11px] text-muted-foreground uppercase font-semibold">
-              <span>Graph Legend</span>
+              <span>{isImpactActive ? 'Impact Legend' : 'Graph Legend'}</span>
               <button
                 onClick={() => setShowLegend(false)}
                 className="text-muted-foreground hover:text-foreground cursor-pointer"
@@ -813,32 +906,57 @@ export function ProjectGraphView() {
               </button>
             </div>
 
-            <div className="space-y-1.5 text-[11px]">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                <span className="text-foreground">Connected Node</span>
-                <span className="text-muted-foreground text-[10px] ml-auto">Has links</span>
+            {isImpactActive ? (
+              <div className="space-y-1.5 text-[11px]">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-primary shrink-0" />
+                  <span className="text-primary">Target Component</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-destructive shrink-0" />
+                  <span className="text-destructive">Critical / High Impact</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-warning shrink-0" />
+                  <span className="text-warning">Medium Impact / Direct</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-success shrink-0" />
+                  <span className="text-success">Low Impact / Indirect</span>
+                </div>
+                <div className="flex items-center gap-2 pt-1 border-t border-border/40">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-muted-foreground/40 shrink-0" />
+                  <span className="text-muted-foreground">Unaffected</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-slate-500 shrink-0" />
-                <span className="text-muted-foreground">Isolated Node</span>
-                <span className="text-muted-foreground text-[10px] ml-auto">No local links</span>
+            ) : (
+              <div className="space-y-1.5 text-[11px]">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-success shrink-0" />
+                  <span className="text-foreground">Connected Node</span>
+                  <span className="text-muted-foreground text-[10px] ml-auto">Has links</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-muted-foreground/60 shrink-0" />
+                  <span className="text-muted-foreground">Isolated Node</span>
+                  <span className="text-muted-foreground text-[10px] ml-auto">No local links</span>
+                </div>
+                <div className="flex items-center gap-2 pt-1 border-t border-border/40">
+                  <div className="w-3 h-0.5 bg-primary shrink-0" />
+                  <span className="text-primary">Dependency (Outgoing)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-0.5 bg-success shrink-0" />
+                  <span className="text-success">Importer (Incoming)</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 pt-1 border-t border-border/40">
-                <div className="w-3 h-0.5 bg-indigo-400 shrink-0" />
-                <span className="text-indigo-400">Dependency (Outgoing)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-0.5 bg-emerald-400 shrink-0" />
-                <span className="text-emerald-400">Importer (Incoming)</span>
-              </div>
-            </div>
+            )}
           </div>
         )}
 
         {/* Selected Node Details Drawer */}
         {selectedMeta && (
-          <div className="absolute top-4 right-4 w-80 sm:w-88 max-h-[calc(100%-2rem)] flex flex-col rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl z-30 overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200">
+          <div className="absolute top-4 right-4 w-80 sm:w-88 max-h-[calc(100%-2rem)] flex flex-col rounded-lg bg-card/95  border border-border shadow-2xl z-30 overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200">
             {/* Drawer Header */}
             <div className="p-4 border-b border-border flex items-start justify-between gap-2 bg-secondary/30">
               <div className="min-w-0">
@@ -860,9 +978,9 @@ export function ProjectGraphView() {
                   <span>{(selectedMeta.file.size / 1024).toFixed(1)} KB</span>
                   <span>•</span>
                   {selectedMeta.isIsolated ? (
-                    <span className="text-amber-400">Isolated</span>
+                    <span className="text-warning">Isolated</span>
                   ) : (
-                    <span className="text-emerald-400">Connected</span>
+                    <span className="text-success">Connected</span>
                   )}
                 </div>
               </div>
@@ -877,10 +995,24 @@ export function ProjectGraphView() {
 
             {/* Drawer Content */}
             <div className="p-4 overflow-y-auto space-y-4 text-xs font-mono max-h-[420px]">
+              {isImpactActive && getImpactStateForFile(selectedMeta.file) && (
+                <div className="p-2.5 rounded-lg bg-[#0E120F] border border-primary/30 space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] uppercase text-primary font-semibold">
+                    <span>Impact Role: {getImpactStateForFile(selectedMeta.file).dependencyType.replace(/_/g, ' ')}</span>
+                    {getImpactStateForFile(selectedMeta.file).severity && (
+                      <span>{getImpactStateForFile(selectedMeta.file).severity}</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-foreground/90 break-all">
+                    Path: {getImpactStateForFile(selectedMeta.file).dependencyPath.join(' → ')}
+                  </p>
+                </div>
+              )}
+
               {/* Dependencies Section (Files imported by this file) */}
               <div>
                 <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground uppercase mb-2">
-                  <span className="flex items-center gap-1.5 text-indigo-400">
+                  <span className="flex items-center gap-1.5 text-primary">
                     <ArrowRight className="w-3.5 h-3.5" />
                     Dependencies ({selectedMeta.resolvedDeps.length})
                   </span>
@@ -893,12 +1025,12 @@ export function ProjectGraphView() {
                       <button
                         key={depName}
                         onClick={() => setSelectedNodeName(depName)}
-                        className="w-full flex items-center justify-between p-2 rounded-lg bg-secondary/50 hover:bg-indigo-500/10 border border-border/80 hover:border-indigo-500/30 text-left transition-colors cursor-pointer group"
+                        className="w-full flex items-center justify-between p-2 rounded-lg bg-secondary/50 hover:bg-primary/10 border border-border/80 hover:border-primary/30 text-left transition-colors cursor-pointer group"
                       >
-                        <span className="font-mono text-[11px] text-foreground group-hover:text-indigo-400 truncate">
+                        <span className="font-mono text-[11px] text-foreground group-hover:text-primary truncate">
                           {depName}
                         </span>
-                        <ArrowRight className="w-3 h-3 text-muted-foreground group-hover:text-indigo-400 shrink-0" />
+                        <ArrowRight className="w-3 h-3 text-muted-foreground group-hover:text-primary shrink-0" />
                       </button>
                     ))}
                   </div>
@@ -912,7 +1044,7 @@ export function ProjectGraphView() {
               {/* Imported By Section (Files that import this file) */}
               <div>
                 <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground uppercase mb-2">
-                  <span className="flex items-center gap-1.5 text-emerald-400">
+                  <span className="flex items-center gap-1.5 text-success">
                     <ArrowLeft className="w-3.5 h-3.5" />
                     Imported By ({selectedMeta.importers.length})
                   </span>
@@ -925,12 +1057,12 @@ export function ProjectGraphView() {
                       <button
                         key={impName}
                         onClick={() => setSelectedNodeName(impName)}
-                        className="w-full flex items-center justify-between p-2 rounded-lg bg-secondary/50 hover:bg-emerald-500/10 border border-border/80 hover:border-emerald-500/30 text-left transition-colors cursor-pointer group"
+                        className="w-full flex items-center justify-between p-2 rounded-lg bg-secondary/50 hover:bg-success/10 border border-border/80 hover:border-success/35 text-left transition-colors cursor-pointer group"
                       >
-                        <span className="font-mono text-[11px] text-foreground group-hover:text-emerald-400 truncate">
+                        <span className="font-mono text-[11px] text-foreground group-hover:text-success truncate">
                           {impName}
                         </span>
-                        <ArrowLeft className="w-3 h-3 text-muted-foreground group-hover:text-emerald-400 shrink-0" />
+                        <ArrowLeft className="w-3 h-3 text-muted-foreground group-hover:text-success shrink-0" />
                       </button>
                     ))}
                   </div>
@@ -957,8 +1089,8 @@ export function ProjectGraphView() {
                         <span
                           className={`text-[9px] px-1.5 py-0.2 rounded border ${
                             u.type === 'external'
-                              ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              ? 'bg-secondary text-muted-foreground border-border'
+                              : 'bg-warning/10 text-warning border-warning/25'
                           }`}
                         >
                           {u.type === 'external' ? 'package' : 'missing'}
@@ -973,7 +1105,11 @@ export function ProjectGraphView() {
             {/* Drawer Actions */}
             <div className="p-3 border-t border-border bg-secondary/20 flex items-center gap-2">
               <button
-                onClick={() => setSelectedFile(selectedMeta.file)}
+                onClick={() =>
+                  onOpenFileAtLine
+                    ? onOpenFileAtLine(selectedMeta.file, { startLine: 1, endLine: 1 })
+                    : setSelectedFile(selectedMeta.file)
+                }
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30 transition-all cursor-pointer"
               >
                 <Eye className="w-3.5 h-3.5" />

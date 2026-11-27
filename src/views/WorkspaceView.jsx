@@ -11,17 +11,15 @@ import {
   Eye,
   AlertCircle,
   Hash,
-  HardDrive,
   Code2,
   Filter,
-  RefreshCw,
   FolderOpen,
   FolderGit2,
   ExternalLink,
   Loader2,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
-import { SUPPORTED_EXTENSIONS, EXTENSION_CONFIG, getFileExtension } from '../constants/fileTypes';
+import { SUPPORTED_EXTENSIONS, EXTENSION_CONFIG } from '../constants/fileTypes';
 
 function readFileFromEntry(fileEntry) {
   return new Promise((resolve, reject) => {
@@ -251,22 +249,22 @@ export function WorkspaceView() {
   });
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#0c0d12] text-slate-200">
+    <div className="flex-1 overflow-y-auto forge-ambient-canvas text-foreground">
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {/* Workspace Title & Supporting Statement */}
-        <div className="border-b border-slate-800/80 pb-6">
+        <div className="border-b border-border pb-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1.5">
-                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-primary/10 text-primary border border-primary/25">
                   DEVELOPER WORKSPACE
                 </span>
-                <span className="text-slate-400 text-xs font-mono">• Client-Side Assistant</span>
+                <span className="text-muted-foreground text-xs font-mono">• Client-Side Assistant</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white font-sans">
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground font-sans">
                 Your codebase, understood.
               </h1>
-              <p className="text-slate-400 text-sm sm:text-base mt-2 max-w-2xl leading-relaxed">
+              <p className="text-muted-foreground text-sm sm:text-base mt-2 max-w-2xl leading-relaxed">
                 Explore your projects, ask better questions, and understand how your code works.
               </p>
             </div>
@@ -282,7 +280,7 @@ export function WorkspaceView() {
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-950/40 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-primary hover:bg-[#D2FA81] text-primary-foreground shadow-sm  transition-colors"
               >
                 <UploadCloud className="w-4 h-4" />
                 <span>Import Files</span>
@@ -290,18 +288,18 @@ export function WorkspaceView() {
 
               <button
                 onClick={openGitHubModal}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 hover:border-indigo-500/40 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-secondary hover:bg-accent text-foreground border border-white/15 hover:border-primary/40 transition-colors"
               >
-                <FolderGit2 className="w-4 h-4 text-indigo-400" />
+                <FolderGit2 className="w-4 h-4 text-primary" />
                 <span>Import GitHub</span>
               </button>
 
               {!isRestoringWorkspace && files.length === 0 && (
                 <button
                   onClick={loadSampleProject}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700/80 hover:border-indigo-500/40 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-secondary hover:bg-accent text-primary border border-white/15 hover:border-primary/40 transition-colors"
                 >
-                  <Sparkles className="w-4 h-4 text-indigo-400" />
+                  <Sparkles className="w-4 h-4 text-primary" />
                   <span>Load Sample Project</span>
                 </button>
               )}
@@ -311,16 +309,16 @@ export function WorkspaceView() {
 
         {/* Non-blocking Storage Notice (Unavailable or Error) */}
         {storageError && (
-          <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-800/50 text-xs text-amber-200 flex items-start justify-between gap-3">
+          <div className="p-3.5 rounded-lg bg-warning/10 border border-amber-800/50 text-xs text-foreground flex items-start justify-between gap-3">
             <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium">
                   {storageStatus === 'unavailable'
                     ? 'In-Memory Workspace Only'
                     : 'Browser Storage Warning'}
                 </p>
-                <p className="text-[11px] text-amber-300/90 mt-0.5">{storageError}</p>
+                <p className="text-[11px] text-warning/90 mt-0.5">{storageError}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -328,7 +326,7 @@ export function WorkspaceView() {
                 <>
                   <button
                     onClick={retryRestoreWorkspace}
-                    className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 transition-colors"
+                    className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-500/20 hover:bg-amber-500/30 text-foreground border border-amber-500/40 transition-colors"
                   >
                     Retry Restore
                   </button>
@@ -345,7 +343,7 @@ export function WorkspaceView() {
                       </button>
                       <button
                         onClick={() => setConfirmOverwriteStorage(false)}
-                        className="px-2 py-1 rounded-md text-[11px] text-slate-300 hover:text-white bg-slate-800 border border-slate-700 transition-colors"
+                        className="px-2 py-1 rounded-md text-[11px] text-foreground/90 hover:text-foreground bg-secondary border border-white/15 transition-colors"
                       >
                         Cancel
                       </button>
@@ -353,7 +351,7 @@ export function WorkspaceView() {
                   ) : (
                     <button
                       onClick={() => setConfirmOverwriteStorage(true)}
-                      className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                      className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-secondary hover:bg-accent text-foreground border border-white/15 transition-colors"
                     >
                       Overwrite Saved
                     </button>
@@ -364,7 +362,7 @@ export function WorkspaceView() {
                 hasUnsavedChanges && (
                   <button
                     onClick={() => syncWorkspaceToStorage()}
-                    className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 transition-colors"
+                    className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-500/20 hover:bg-amber-500/30 text-foreground border border-amber-500/40 transition-colors"
                   >
                     Retry Sync
                   </button>
@@ -375,7 +373,7 @@ export function WorkspaceView() {
                   setConfirmOverwriteStorage(false);
                   dismissStorageError();
                 }}
-                className="text-amber-300 hover:text-amber-100 p-1"
+                className="text-warning hover:text-amber-100 p-1"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -385,14 +383,14 @@ export function WorkspaceView() {
 
         {/* Empty State / Initial Importer Interface */}
         {isRestoringWorkspace && files.length === 0 ? (
-          <div className="border border-slate-800 rounded-xl p-12 text-center bg-slate-900/30">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+          <div className="border border-border rounded-lg p-12 text-center bg-secondary/30">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center text-primary">
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
-            <h2 className="text-base font-semibold text-slate-100 mb-1">
+            <h2 className="text-base font-semibold text-foreground mb-1">
               Restoring Saved Workspace...
             </h2>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
               Checking browser IndexedDB storage for your previous files and project metadata.
             </p>
           </div>
@@ -402,19 +400,19 @@ export function WorkspaceView() {
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              className={`border-2 border-dashed rounded-xl p-12 text-center transition-all ${
+              className={`border-2 border-dashed rounded-lg p-12 text-center transition-all ${
                 dragActive
-                  ? 'border-indigo-500 bg-indigo-950/20'
-                  : 'border-slate-800 hover:border-slate-700 bg-slate-900/30'
+                  ? 'border-primary bg-primary/8'
+                  : 'border-border hover:border-white/15 bg-secondary/30'
               }`}
             >
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center text-primary">
                 <Code2 className="w-8 h-8" />
               </div>
-              <h2 className="text-lg font-semibold text-slate-100 mb-1">
+              <h2 className="text-lg font-semibold text-foreground mb-1">
                 Import Source Code to Begin
               </h2>
-              <p className="text-xs text-slate-400 max-w-md mx-auto mb-6 leading-relaxed">
+              <p className="text-xs text-muted-foreground max-w-md mx-auto mb-6 leading-relaxed">
                 Select your codebase files from your local disk. Files are processed entirely inside
                 your browser in memory.
               </p>
@@ -422,30 +420,30 @@ export function WorkspaceView() {
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors shadow-sm shadow-indigo-900/30"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-md text-xs font-semibold bg-primary hover:bg-[#D2FA81] text-primary-foreground transition-colors cursor-pointer"
                 >
                   <UploadCloud className="w-4 h-4" />
                   Choose Files from Computer
                 </button>
                 <button
                   onClick={openGitHubModal}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold bg-secondary hover:bg-accent text-foreground border border-white/15 transition-colors"
                 >
-                  <FolderGit2 className="w-4 h-4 text-indigo-400" />
+                  <FolderGit2 className="w-4 h-4 text-primary" />
                   Import from GitHub
                 </button>
                 <button
                   onClick={loadSampleProject}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 transition-colors"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold bg-secondary hover:bg-accent text-primary border border-white/15 transition-colors"
                 >
-                  <Sparkles className="w-4 h-4 text-indigo-400" />
+                  <Sparkles className="w-4 h-4 text-primary" />
                   Explore with Sample Files
                 </button>
               </div>
 
               {/* Supported Extensions List */}
-              <div className="mt-8 pt-6 border-t border-slate-800/60 max-w-2xl mx-auto">
-                <p className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-3">
+              <div className="mt-8 pt-6 border-t border-border max-w-2xl mx-auto">
+                <p className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-3">
                   Supported File Extensions
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-1.5">
@@ -455,7 +453,7 @@ export function WorkspaceView() {
                       <span
                         key={ext}
                         className={`text-[11px] font-mono px-2 py-0.5 rounded border ${
-                          cfg ? cfg.color : 'text-slate-400 border-slate-800 bg-slate-900'
+                          cfg ? cfg.color : 'text-muted-foreground border-border bg-secondary'
                         }`}
                       >
                         {ext}
@@ -468,32 +466,32 @@ export function WorkspaceView() {
 
             {/* Architecture Explainer Card */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-5 rounded-xl bg-slate-900/40 border border-slate-800/70">
-                <div className="text-indigo-400 font-mono text-xs mb-2 font-semibold flex items-center gap-1.5">
+              <div className="p-5 rounded-lg bg-muted border border-border">
+                <div className="text-primary font-mono text-xs mb-2 font-semibold flex items-center gap-1.5">
                   <Hash className="w-3.5 h-3.5" /> 01. Ingest
                 </div>
-                <h3 className="text-sm font-semibold text-slate-200 mb-1">Local & Private</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <h3 className="text-sm font-semibold text-foreground mb-1">Local & Private</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   Source code never leaves your local browser sandbox. No backend servers or third-party telemetry.
                 </p>
               </div>
 
-              <div className="p-5 rounded-xl bg-slate-900/40 border border-slate-800/70">
-                <div className="text-indigo-400 font-mono text-xs mb-2 font-semibold flex items-center gap-1.5">
+              <div className="p-5 rounded-lg bg-muted border border-border">
+                <div className="text-primary font-mono text-xs mb-2 font-semibold flex items-center gap-1.5">
                   <Search className="w-3.5 h-3.5" /> 02. Search & Inspect
                 </div>
-                <h3 className="text-sm font-semibold text-slate-200 mb-1">Local Keyword Index</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <h3 className="text-sm font-semibold text-foreground mb-1">Local Keyword Index</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   Rapidly locate symbols, functions, configurations, and imports across all loaded files.
                 </p>
               </div>
 
-              <div className="p-5 rounded-xl bg-slate-900/40 border border-slate-800/70">
-                <div className="text-indigo-400 font-mono text-xs mb-2 font-semibold flex items-center gap-1.5">
+              <div className="p-5 rounded-lg bg-muted border border-border">
+                <div className="text-primary font-mono text-xs mb-2 font-semibold flex items-center gap-1.5">
                   <Code2 className="w-3.5 h-3.5" /> 03. Future Roadmap
                 </div>
-                <h3 className="text-sm font-semibold text-slate-200 mb-1">Milestones 2 & 3</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <h3 className="text-sm font-semibold text-foreground mb-1">Milestones 2 & 3</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   Upcoming AST code graph, vector embeddings, and LLM-powered architectural explanations.
                 </p>
               </div>
@@ -509,14 +507,14 @@ export function WorkspaceView() {
                 lastImportSummary.stats?.cappedCount > 0 ||
                 lastImportSummary.stats?.oversizedCount > 0 ||
                 lastImportSummary.duplicateCount > 0) && (
-                <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-800/50 text-xs text-amber-200 flex items-start justify-between gap-3">
+                <div className="p-3.5 rounded-lg bg-warning/10 border border-amber-800/50 text-xs text-foreground flex items-start justify-between gap-3">
                   <div className="flex items-start gap-2.5">
-                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
                     <div className="space-y-0.5">
                       <p className="font-medium">
                         GitHub Import Summary for <span className="font-mono">{lastImportSummary.repoLabel}</span> ({lastImportSummary.branch})
                       </p>
-                      <p className="text-[11px] text-amber-300/90 font-mono">
+                      <p className="text-[11px] text-warning/90 font-mono">
                         Loaded {lastImportSummary.addedCount} files
                         {lastImportSummary.duplicateCount > 0 ? ` • ${lastImportSummary.duplicateCount} existing paths preserved` : ''}
                         {lastImportSummary.stats?.failedCount > 0 ? ` • ${lastImportSummary.stats.failedCount} download(s) failed` : ''}
@@ -526,15 +524,15 @@ export function WorkspaceView() {
                       </p>
                     </div>
                   </div>
-                  <button onClick={dismissImportSummary} className="text-amber-300 hover:text-amber-100 p-1">
+                  <button onClick={dismissImportSummary} className="text-warning hover:text-amber-100 p-1">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               )}
 
             {/* Project Overview Card */}
-            <div className="p-6 rounded-xl bg-[#11131c] border border-slate-800/80 shadow-lg shadow-black/20">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-800">
+            <div className="p-6 rounded-lg bg-card border border-border shadow-lg shadow-black/20">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-border">
                 {/* Editable Project Name */}
                 <div className="flex items-center gap-3">
                   {isEditingName ? (
@@ -548,18 +546,18 @@ export function WorkspaceView() {
                           if (e.key === 'Escape') setIsEditingName(false);
                         }}
                         autoFocus
-                        className="px-3 py-1.5 bg-slate-950 border border-indigo-500 rounded-lg text-sm font-semibold text-white focus:outline-none"
+                        className="px-3 py-1.5 bg-[#0E120F] border border-primary rounded-md text-sm font-semibold text-foreground focus:outline-hidden"
                       />
                       <button
                         onClick={handleNameSave}
-                        className="p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+                        className="p-1.5 rounded-lg bg-primary hover:bg-[#D2FA81] text-primary-foreground transition-colors"
                         title="Save name"
                       >
                         <Check className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setIsEditingName(false)}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                        className="p-1.5 rounded-lg bg-secondary hover:bg-accent text-foreground/90 transition-colors"
                         title="Cancel"
                       >
                         <X className="w-4 h-4" />
@@ -567,7 +565,7 @@ export function WorkspaceView() {
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 group">
-                      <h2 className="text-xl font-bold text-slate-100 font-sans tracking-tight">
+                      <h2 className="text-xl font-bold text-foreground font-sans tracking-tight">
                         {projectName}
                       </h2>
                       <button
@@ -575,7 +573,7 @@ export function WorkspaceView() {
                           setTempName(projectName);
                           setIsEditingName(true);
                         }}
-                        className="p-1.5 text-slate-400 hover:text-indigo-400 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-primary rounded transition-colors"
                         title="Rename Project"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -585,7 +583,7 @@ export function WorkspaceView() {
                           href={projectSource.repoUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-primary/10 text-primary border border-primary/25 hover:bg-primary/15 transition-colors"
                         >
                           <span>{projectSource.branch}</span>
                           <ExternalLink className="w-3 h-3" />
@@ -599,9 +597,9 @@ export function WorkspaceView() {
                 <div className="flex items-center gap-2.5">
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-secondary hover:bg-accent text-foreground border border-white/15 transition-colors"
                   >
-                    <UploadCloud className="w-3.5 h-3.5 text-indigo-400" />
+                    <UploadCloud className="w-3.5 h-3.5 text-primary" />
                     <span>Add Files</span>
                   </button>
 
@@ -610,10 +608,10 @@ export function WorkspaceView() {
                       setLocalInputQuery('');
                       clearAllFiles();
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-950/30 hover:bg-red-950/60 text-red-300 border border-red-900/50 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-destructive/10 hover:bg-red-950/60 text-destructive border border-red-900/50 transition-colors"
                     title="Remove all imported files"
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
                     <span>Clear Selection</span>
                   </button>
                 </div>
@@ -621,42 +619,42 @@ export function WorkspaceView() {
 
               {/* Real Project Statistics (No fabricated metrics) */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-5">
-                <div className="p-3.5 rounded-lg bg-slate-900/50 border border-slate-800/60">
-                  <span className="text-[11px] font-mono uppercase text-slate-400 block mb-1">
+                <div className="p-3.5 rounded-lg bg-muted border border-border">
+                  <span className="text-[11px] font-mono uppercase text-muted-foreground block mb-1">
                     Total Files
                   </span>
-                  <span className="text-xl font-bold text-slate-100 font-mono">
+                  <span className="text-xl font-bold text-foreground font-mono">
                     {files.length}
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-lg bg-slate-900/50 border border-slate-800/60">
-                  <span className="text-[11px] font-mono uppercase text-slate-400 block mb-1">
+                <div className="p-3.5 rounded-lg bg-muted border border-border">
+                  <span className="text-[11px] font-mono uppercase text-muted-foreground block mb-1">
                     Lines of Code
                   </span>
-                  <span className="text-xl font-bold text-slate-100 font-mono">
+                  <span className="text-xl font-bold text-foreground font-mono">
                     {totalLines.toLocaleString()}
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-lg bg-slate-900/50 border border-slate-800/60">
-                  <span className="text-[11px] font-mono uppercase text-slate-400 block mb-1">
+                <div className="p-3.5 rounded-lg bg-muted border border-border">
+                  <span className="text-[11px] font-mono uppercase text-muted-foreground block mb-1">
                     Memory Footprint
                   </span>
-                  <span className="text-xl font-bold text-slate-100 font-mono">
-                    {totalSizeKb} <span className="text-xs font-normal text-slate-400">KB</span>
+                  <span className="text-xl font-bold text-foreground font-mono">
+                    {totalSizeKb} <span className="text-xs font-normal text-muted-foreground">KB</span>
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-lg bg-slate-900/50 border border-slate-800/60">
-                  <span className="text-[11px] font-mono uppercase text-slate-400 block mb-1">
+                <div className="p-3.5 rounded-lg bg-muted border border-border">
+                  <span className="text-[11px] font-mono uppercase text-muted-foreground block mb-1">
                     Language Breakdown
                   </span>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {Object.entries(extensionCounts).map(([ext, count]) => (
                       <span
                         key={ext}
-                        className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700/60"
+                        className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-foreground/90 border border-white/15/60"
                       >
                         {ext}: {count}
                       </span>
@@ -670,22 +668,22 @@ export function WorkspaceView() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* Left Column: File Inventory & Management (5 cols) */}
               <div className="lg:col-span-5 space-y-4">
-                <div className="p-5 rounded-xl bg-[#11131c] border border-slate-800/80">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="p-5 rounded-xl forge-panel">
+                  <div className="flex items-center justify-between pb-3 border-b border-border">
                     <div className="flex items-center gap-2">
-                      <FolderOpen className="w-4 h-4 text-indigo-400" />
-                      <h3 className="text-sm font-semibold text-slate-200">
+                      <FolderOpen className="w-4 h-4 text-primary" />
+                      <h3 className="text-sm font-semibold text-foreground">
                         Imported Files ({files.length})
                       </h3>
                     </div>
 
                     {/* Filter by extension */}
                     <div className="flex items-center gap-1.5 text-xs">
-                      <Filter className="w-3 h-3 text-slate-400" />
+                      <Filter className="w-3 h-3 text-muted-foreground" />
                       <select
                         value={fileExtensionFilter}
                         onChange={(e) => setFileExtensionFilter(e.target.value)}
-                        className="bg-slate-900 border border-slate-800 rounded px-2 py-1 text-[11px] font-mono text-slate-300 focus:outline-none"
+                        className="bg-secondary border border-border rounded px-2 py-1 text-[11px] font-mono text-foreground/90 focus:outline-none"
                       >
                         <option value="ALL">All ({files.length})</option>
                         {Object.keys(extensionCounts).map((ext) => (
@@ -702,26 +700,26 @@ export function WorkspaceView() {
                     {filteredFiles.map((file) => {
                       const cfg = EXTENSION_CONFIG[file.extension] || {
                         label: file.extension,
-                        color: 'text-slate-400 border-slate-700 bg-slate-800',
+                        color: 'text-muted-foreground border-white/15 bg-secondary',
                       };
                       return (
                         <div
                           key={file.id}
-                          className="py-3 flex items-center justify-between gap-3 hover:bg-slate-900/40 px-2 rounded-lg transition-colors group"
+                          className="py-3 flex items-center justify-between gap-3 hover:bg-muted px-2 rounded-lg transition-colors group"
                         >
                           <div
                             onClick={() => setSelectedFile(file)}
                             className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
                           >
-                            <FileCode className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors shrink-0" />
+                            <FileCode className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                             <div className="min-w-0">
                               <p
-                                className="text-xs font-mono text-slate-200 group-hover:text-white truncate font-medium"
+                                className="text-xs font-mono text-foreground group-hover:text-foreground truncate font-medium"
                                 title={file.path || file.name}
                               >
                                 {file.path || file.name}
                               </p>
-                              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
+                              <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono mt-0.5">
                                 <span>{file.lineCount} lines</span>
                                 <span>•</span>
                                 <span>{(file.size / 1024).toFixed(1)} KB</span>
@@ -737,14 +735,14 @@ export function WorkspaceView() {
                             </span>
                             <button
                               onClick={() => setSelectedFile(file)}
-                              className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors"
+                              className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
                               title="Inspect File"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => removeFile(file.id)}
-                              className="p-1 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded transition-colors"
+                              className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/12 rounded transition-colors"
                               title="Remove file"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -759,19 +757,19 @@ export function WorkspaceView() {
 
               {/* Right Column: Basic Assistant - Local Code Search (7 cols) */}
               <div className="lg:col-span-7 space-y-4">
-                <div className="p-5 rounded-xl bg-[#11131c] border border-slate-800/80 space-y-5">
+                <div className="p-5 rounded-xl forge-panel space-y-5">
                   {/* Search Header, Mode Selector & Semantic Index Status */}
                   <div>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                        <div className="p-1.5 rounded-md bg-primary/10 border border-primary/25 text-primary">
                           <Search className="w-4 h-4" />
                         </div>
                         <div>
-                          <h3 className="text-sm font-semibold text-slate-100">
+                          <h3 className="text-sm font-semibold text-foreground">
                             Hybrid Code Search
                           </h3>
-                          <span className="text-[10px] text-indigo-400 font-mono">
+                          <span className="text-[10px] text-primary font-mono">
                             BM25 + AST + Local Embeddings
                           </span>
                         </div>
@@ -781,7 +779,7 @@ export function WorkspaceView() {
                       <div
                         role="group"
                         aria-label="Search mode"
-                        className="inline-flex items-center p-0.5 rounded-lg bg-[#0a0c12] border border-slate-800"
+                        className="inline-flex items-center p-0.5 rounded-lg bg-[#0E120F] border border-border"
                       >
                         {[
                           { id: 'keyword', label: 'Keyword' },
@@ -797,8 +795,8 @@ export function WorkspaceView() {
                               onClick={() => handleSearchModeChange(modeOption.id)}
                               className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-colors ${
                                 isActive
-                                  ? 'bg-indigo-600 text-white shadow-sm'
-                                  : 'text-slate-400 hover:text-slate-200'
+                                  ? 'bg-primary text-primary-foreground shadow-sm'
+                                  : 'text-muted-foreground hover:text-foreground'
                               }`}
                             >
                               {modeOption.label}
@@ -826,21 +824,21 @@ export function WorkspaceView() {
                               ? prog.modelProgress
                               : null;
                         return (
-                          <div className="mt-3 p-3 rounded-lg bg-indigo-950/20 border border-indigo-500/25 text-[11px] text-slate-300 space-y-2">
+                          <div className="mt-3 p-3 rounded-lg bg-primary/8 border border-primary/25 text-[11px] text-foreground/90 space-y-2">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="flex items-center gap-2 font-medium text-indigo-300">
+                              <span className="flex items-center gap-2 font-medium text-primary">
                                 <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
                                 {status === 'loading_model'
                                   ? 'Loading client-side embedding model...'
                                   : `Indexing code chunks (${prog.completed || 0}/${prog.total || embeddingStatus?.totalChunkCount || 0})...`}
                               </span>
                               {pct !== null && (
-                                <span className="font-mono text-[10px] text-indigo-300">{pct}%</span>
+                                <span className="font-mono text-[10px] text-primary">{pct}%</span>
                               )}
                             </div>
-                            <div className="w-full h-1 rounded-full bg-slate-800 overflow-hidden">
+                            <div className="w-full h-1 rounded-full bg-secondary overflow-hidden">
                               <div
-                                className="h-full bg-indigo-500 transition-all duration-200"
+                                className="h-full bg-primary transition-all duration-200"
                                 style={{ width: `${pct !== null ? pct : 25}%` }}
                               />
                             </div>
@@ -850,10 +848,10 @@ export function WorkspaceView() {
 
                       if (fallbackActive) {
                         return (
-                          <div className="mt-3 p-3 rounded-lg bg-amber-950/20 border border-amber-500/30 text-[11px] text-amber-200/90 leading-normal flex items-start gap-2.5">
-                            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                          <div className="mt-3 p-3 rounded-lg bg-warning/10 border border-warning/30 text-[11px] text-foreground/90 leading-normal flex items-start gap-2.5">
+                            <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
                             <div>
-                              <strong className="text-amber-300">
+                              <strong className="text-warning">
                                 Semantic Search Unavailable — Lexical Fallback Active:
                               </strong>{' '}
                               Using local BM25 + AST keyword matching.
@@ -865,24 +863,24 @@ export function WorkspaceView() {
 
                       if (status === 'ready') {
                         return (
-                          <div className="mt-3 px-3 py-2 rounded-lg bg-slate-950/60 border border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between gap-2">
+                          <div className="mt-3 px-3 py-2 rounded-lg bg-[#0E120F] border border-border text-[11px] text-muted-foreground flex items-center justify-between gap-2">
                             <span className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                              <span className="text-slate-300 font-medium">Semantic Index Ready</span>
-                              <span className="font-mono text-[10px] text-slate-400">
+                              <span className="w-2 h-2 rounded-full bg-success shrink-0" />
+                              <span className="text-foreground/90 font-medium">Semantic Index Ready</span>
+                              <span className="font-mono text-[10px] text-muted-foreground">
                                 • {embeddingStatus.indexedChunkCount} chunk{embeddingStatus.indexedChunkCount === 1 ? '' : 's'} embedded locally
                               </span>
                             </span>
-                            <span className="text-[10px] font-mono text-slate-500">Client-side ONNX</span>
+                            <span className="text-[10px] font-mono text-muted-foreground/80">Client-side ONNX</span>
                           </div>
                         );
                       }
 
                       return (
-                        <div className="mt-3 p-3 rounded-lg bg-slate-950/60 border border-slate-800/80 text-[11px] text-slate-400 leading-normal flex items-start gap-2.5">
-                          <AlertCircle className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                        <div className="mt-3 p-3 rounded-lg bg-[#0E120F] border border-border text-[11px] text-muted-foreground leading-normal flex items-start gap-2.5">
+                          <AlertCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                           <div>
-                            <strong className="text-slate-300">Client-Side Hybrid Search:</strong>{' '}
+                            <strong className="text-foreground/90">Client-Side Hybrid Search:</strong>{' '}
                             Combines AST exact matches, BM25 keyword ranking, and local semantic
                             embeddings — zero server calls required.
                           </div>
@@ -899,26 +897,26 @@ export function WorkspaceView() {
                         value={localInputQuery}
                         onChange={handleSearchInputChange}
                         placeholder="Ask a question or enter keywords (e.g., auth, token, retry, database)..."
-                        className="w-full bg-[#0a0c12] border border-slate-700/80 focus:border-indigo-500 rounded-lg pl-10 pr-28 py-2.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none transition-colors"
+                        className="w-full bg-[#0E120F] border border-white/15 focus:border-primary rounded-lg pl-10 pr-28 py-2.5 text-xs text-foreground placeholder-slate-400 focus:outline-none transition-colors"
                       />
                       {isSearching ? (
-                        <Loader2 className="w-4 h-4 text-indigo-400 animate-spin absolute left-3.5 top-3" />
+                        <Loader2 className="w-4 h-4 text-primary animate-spin absolute left-3.5 top-3" />
                       ) : (
-                        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                        <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-3" />
                       )}
                       {localInputQuery && (
                         <button
                           type="button"
                           aria-label="Clear search"
                           onClick={handleClearSearch}
-                          className="absolute right-16 top-2.5 text-slate-400 hover:text-slate-200 p-1"
+                          className="absolute right-16 top-2.5 text-muted-foreground hover:text-foreground p-1"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
                       )}
                       <button
                         type="submit"
-                        className="absolute right-2 top-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+                        className="absolute right-2 top-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-primary hover:bg-[#D2FA81] text-primary-foreground transition-colors"
                       >
                         {isSearching ? 'Searching...' : 'Search'}
                       </button>
@@ -926,14 +924,14 @@ export function WorkspaceView() {
 
                     {/* Suggested keyword chips */}
                     <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                      <span className="text-slate-400 font-mono text-[10px]">Suggested:</span>
+                      <span className="text-muted-foreground font-mono text-[10px]">Suggested:</span>
                       {['auth', 'token', 'retry', 'database', 'config', 'interface', 'export'].map(
                         (term) => (
                           <button
                             key={term}
                             type="button"
                             onClick={() => handleSuggestedQuery(term)}
-                            className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-slate-700 font-mono text-[10px] transition-colors"
+                            className="px-2 py-0.5 rounded bg-secondary hover:bg-accent text-foreground/90 border border-border hover:border-white/15 font-mono text-[10px] transition-colors"
                           >
                             {term}
                           </button>
@@ -945,9 +943,9 @@ export function WorkspaceView() {
                   {/* Search Results Display */}
                   <div className="pt-2">
                     {searchQuery && searchResults === null && isSearching && (
-                      <div className="p-8 text-center rounded-lg bg-slate-950/40 border border-slate-800/60">
-                        <Loader2 className="w-7 h-7 text-indigo-400 animate-spin mx-auto mb-2" />
-                        <p className="text-xs font-medium text-slate-300">
+                      <div className="p-8 text-center rounded-lg bg-[#0E120F]/40 border border-border">
+                        <Loader2 className="w-7 h-7 text-primary animate-spin mx-auto mb-2" />
+                        <p className="text-xs font-medium text-foreground/90">
                           Searching "{searchQuery}"...
                         </p>
                       </div>
@@ -955,11 +953,11 @@ export function WorkspaceView() {
 
                     {searchQuery && searchResults !== null && (
                       <div className="space-y-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs pb-2 border-b border-slate-800">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs pb-2 border-b border-border">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-slate-400">
+                            <span className="text-muted-foreground">
                               Results for{' '}
-                              <span className="text-indigo-300 font-mono font-medium">
+                              <span className="text-primary font-mono font-medium">
                                 "{searchQuery}"
                               </span>
                             </span>
@@ -970,8 +968,8 @@ export function WorkspaceView() {
                                   (searchMode !== 'keyword' &&
                                     !lastSearchMeta.semanticUsed &&
                                     lastSearchMeta.modeUsed !== 'hybrid_pending')
-                                    ? 'bg-amber-500/10 text-amber-300 border-amber-500/25'
-                                    : 'bg-slate-900 text-slate-300 border-slate-700/80'
+                                    ? 'bg-warning/10 text-warning border-warning/25'
+                                    : 'bg-secondary text-foreground/90 border-white/15'
                                 }`}
                               >
                                 {lastSearchMeta.modeUsed === 'lexical_fallback' ||
@@ -989,21 +987,21 @@ export function WorkspaceView() {
                               </span>
                             )}
                           </div>
-                          <span className="text-[11px] font-mono text-slate-400 flex items-center gap-2">
+                          <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-2">
                             {isSearching && (
-                              <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />
+                              <Loader2 className="w-3 h-3 animate-spin text-primary" />
                             )}
                             {searchResults.length} file{searchResults.length === 1 ? '' : 's'} matched
                           </span>
                         </div>
 
                         {searchResults.length === 0 ? (
-                          <div className="p-8 text-center rounded-lg bg-slate-950/40 border border-slate-800/60">
-                            <AlertCircle className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                            <p className="text-xs font-medium text-slate-300 mb-1">
+                          <div className="p-8 text-center rounded-lg bg-[#0E120F]/40 border border-border">
+                            <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-xs font-medium text-foreground/90 mb-1">
                               No matching code snippets found
                             </p>
-                            <p className="text-[11px] text-slate-400 max-w-sm mx-auto leading-relaxed">
+                            <p className="text-[11px] text-muted-foreground max-w-sm mx-auto leading-relaxed">
                               No relevant matches for "{searchQuery}" were detected in your loaded files.
                               Try different keywords, a conceptual description, or another search mode.
                             </p>
@@ -1015,14 +1013,14 @@ export function WorkspaceView() {
                               return (
                                 <div
                                   key={res.fileId}
-                                  className="rounded-lg bg-slate-950/80 border border-slate-800/80 overflow-hidden"
+                                  className="rounded-lg bg-[#0E120F] border border-border overflow-hidden"
                                 >
                                   {/* Result File Header */}
-                                  <div className="px-3.5 py-2 bg-slate-900/60 border-b border-slate-800/80 flex items-center justify-between gap-2">
+                                  <div className="px-3.5 py-2 bg-muted border-b border-border flex items-center justify-between gap-2">
                                     <div className="flex items-center gap-2 min-w-0">
-                                      <FileCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                                      <FileCode className="w-3.5 h-3.5 text-primary shrink-0" />
                                       <span
-                                        className="text-xs font-mono font-medium text-slate-200 truncate"
+                                        className="text-xs font-mono font-medium text-foreground truncate"
                                         title={res.filePath || res.fileName}
                                       >
                                         {res.filePath || res.fileName}
@@ -1030,17 +1028,17 @@ export function WorkspaceView() {
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                       {res.matchType && (
-                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800/90 text-slate-300 border border-slate-700/70 capitalize">
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary/90 text-foreground/90 border border-white/15/70 capitalize">
                                           {res.matchType}
                                         </span>
                                       )}
-                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/25">
                                         {res.totalMatches} match{res.totalMatches === 1 ? '' : 'es'}
                                       </span>
                                       {targetFile && (
                                         <button
                                           onClick={() => setSelectedFile(targetFile)}
-                                          className="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-1 font-mono hover:underline"
+                                          className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 font-mono hover:underline"
                                         >
                                           View Full File
                                         </button>
@@ -1058,19 +1056,19 @@ export function WorkspaceView() {
                                       return (
                                         <div
                                           key={mIdx}
-                                          className="flex items-start gap-2 hover:bg-slate-900/80 px-2 py-1 rounded transition-colors group"
+                                          className="flex items-start gap-2 hover:bg-muted px-2 py-1 rounded transition-colors group"
                                         >
-                                          <span className="text-slate-400 select-none text-[10px] min-w-12 text-right shrink-0 pt-0.5">
+                                          <span className="text-muted-foreground select-none text-[10px] min-w-12 text-right shrink-0 pt-0.5">
                                             {lineLabel}
                                           </span>
-                                          <span className="text-slate-300 whitespace-pre-wrap break-all flex-1">
+                                          <span className="text-foreground/90 whitespace-pre-wrap break-all flex-1">
                                             {match.lineContent}
                                           </span>
                                         </div>
                                       );
                                     })}
                                     {res.matches.length > 5 && (
-                                      <div className="text-[10px] text-slate-400 pt-1 pl-14">
+                                      <div className="text-[10px] text-muted-foreground pt-1 pl-14">
                                         + {res.matches.length - 5} more matching lines in file
                                       </div>
                                     )}
@@ -1084,12 +1082,12 @@ export function WorkspaceView() {
                     )}
 
                     {!searchQuery && (
-                      <div className="p-8 text-center rounded-lg bg-slate-950/30 border border-slate-800/40">
-                        <Search className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                        <p className="text-xs font-medium text-slate-300 mb-1">
+                      <div className="p-8 text-center rounded-lg bg-[#0E120F]/30 border border-border/40">
+                        <Search className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-xs font-medium text-foreground/90 mb-1">
                           Search Across Ingested Code
                         </p>
-                        <p className="text-[11px] text-slate-400 max-w-sm mx-auto leading-relaxed">
+                        <p className="text-[11px] text-muted-foreground max-w-sm mx-auto leading-relaxed">
                           Type a symbol name, keyword, or natural-language question above to search
                           your workspace files.
                         </p>

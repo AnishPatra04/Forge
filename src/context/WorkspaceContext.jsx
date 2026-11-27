@@ -24,6 +24,24 @@ import {
   requestAssistantAnswer,
   checkAssistantHealth,
 } from '../utils/ragPipeline.js';
+import {
+  validateReviewableFile,
+  gatherSupportingContext,
+  buildProjectReviewBatches,
+  aggregateProjectReviewResults,
+  requestFileReview,
+  requestProjectBatchReview,
+} from '../utils/codeReviewPipeline.js';
+import {
+  parseChangeDescription,
+  resolveChangeTargets,
+  traverseDependencyImpact,
+  discoverTestIntelligence,
+  collectBoundedImpactContext,
+  collectDeterministicUncertainties,
+  buildImpactGraphOverlay,
+  requestImpactReasoning,
+} from '../utils/changeImpactEngine.js';
 
 const WorkspaceContext = createContext(null);
 
@@ -99,11 +117,28 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
     error: null,
   });
 
+  // AI Code Review session state
+  const [codeReviewResult, setCodeReviewResult] = useState(null);
+  const [isReviewingCode, setIsReviewingCode] = useState(false);
+  const [codeReviewProgress, setCodeReviewProgress] = useState(null);
+  const [codeReviewError, setCodeReviewError] = useState(null);
+
+  // Change Impact Simulator session state
+  const [impactAnalysis, setImpactAnalysis] = useState(null);
+  const [impactHistory, setImpactHistory] = useState([]);
+  const [isAnalyzingImpact, setIsAnalyzingImpact] = useState(false);
+  const [impactProgress, setImpactProgress] = useState(null);
+  const [impactError, setImpactError] = useState(null);
+
   const vectorIndexRef = useRef(null);
   const workspaceEpochRef = useRef(0);
   const searchRequestSeqRef = useRef(0);
   const assistantRequestSeqRef = useRef(0);
   const assistantAbortControllerRef = useRef(null);
+  const reviewRequestSeqRef = useRef(0);
+  const reviewAbortControllerRef = useRef(null);
+  const impactRequestSeqRef = useRef(0);
+  const impactAbortControllerRef = useRef(null);
   const assistantMessagesRef = useRef([]);
   useEffect(() => {
     assistantMessagesRef.current = assistantMessages;
@@ -135,9 +170,19 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
     workspaceEpochRef.current += 1;
     searchRequestSeqRef.current += 1;
     assistantRequestSeqRef.current += 1;
+    reviewRequestSeqRef.current += 1;
+    impactRequestSeqRef.current += 1;
     if (assistantAbortControllerRef.current) {
       assistantAbortControllerRef.current.abort();
       assistantAbortControllerRef.current = null;
+    }
+    if (reviewAbortControllerRef.current) {
+      reviewAbortControllerRef.current.abort();
+      reviewAbortControllerRef.current = null;
+    }
+    if (impactAbortControllerRef.current) {
+      impactAbortControllerRef.current.abort();
+      impactAbortControllerRef.current = null;
     }
     setIsSearching(false);
     setSearchResults(null);
@@ -146,6 +191,15 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
     setAssistantMessages([]);
     setIsAssistantLoading(false);
     setAssistantError(null);
+    setCodeReviewResult(null);
+    setIsReviewingCode(false);
+    setCodeReviewProgress(null);
+    setCodeReviewError(null);
+    setImpactAnalysis(null);
+    setImpactHistory([]);
+    setIsAnalyzingImpact(false);
+    setImpactProgress(null);
+    setImpactError(null);
     setSelectedLineRange(null);
     invalidateTestSuite();
 
@@ -170,10 +224,20 @@ export function WorkspaceProvider({ children, vectorIndexFactory = createVectorI
       searchRequestSeqRef.current += 1;
       assistantRequestSeqRef.current += 1;
       testGenerationSeqRef.current += 1;
+      reviewRequestSeqRef.current += 1;
+      impactRequestSeqRef.current += 1;
       workspaceEpochRef.current += 1;
       if (assistantAbortControllerRef.current) {
         assistantAbortControllerRef.current.abort();
         assistantAbortControllerRef.current = null;
+      }
+      if (reviewAbortControllerRef.current) {
+        reviewAbortControllerRef.current.abort();
+        reviewAbortControllerRef.current = null;
+      }
+      if (impactAbortControllerRef.current) {
+        impactAbortControllerRef.current.abort();
+        impactAbortControllerRef.current = null;
       }
       if (vectorIndexRef.current) {
         vectorIndexRef.current.dispose();
@@ -1499,6 +1563,705 @@ const removeFile = useCallback(async (fileId) => {
     [files, architectureModel, projectName, projectSource, invalidateTestSuite, addActivity]
   );
 
+  const dismissCodeReviewError = useCallback(() => {
+    setCodeReviewError(null);
+  }, []);
+
+  const cancelCodeReview = useCallback(() => {
+    reviewRequestSeqRef.current += 1;
+    if (reviewAbortControllerRef.current) {
+      reviewAbortControllerRef.current.abort();
+      reviewAbortControllerRef.current = null;
+    }
+    setIsReviewingCode(false);
+    setCodeReviewProgress(null);
+  }, []);
+
+  const clearCodeReview = useCallback(() => {
+    cancelCodeReview();
+    setCodeReviewResult(null);
+    setCodeReviewError(null);
+  }, [cancelCodeReview]);
+
+  const runFileCodeReview = useCallback(
+    async (fileId, scope = null) => {
+      const targetFile = files.find((f) => f.id === fileId) || null;
+      const validation = validateReviewableFile(targetFile);
+      if (!validation.eligible) {
+        setCodeReviewError({ code: 'INVALID_FILE', message: validation.reason });
+        return null;
+      }
+
+      if (reviewAbortControllerRef.current) {
+        reviewAbortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      reviewAbortControllerRef.current = controller;
+
+      const reqSeq = ++reviewRequestSeqRef.current;
+      const epochAtStart = workspaceEpochRef.current;
+      const targetPath = getFilePath(targetFile) || targetFile.name;
+
+      setIsReviewingCode(true);
+      setCodeReviewError(null);
+      setCodeReviewProgress({
+        phase: 'gathering_context',
+        completedBatches: 0,
+        totalBatches: 1,
+        currentLabel: `Gathering supporting context for ${targetPath}...`,
+      });
+
+      try {
+        const supportingChunks = await gatherSupportingContext({
+          targetFile,
+          files,
+          chunks: searchArtifacts.chunks,
+          bm25Index: searchArtifacts.bm25Index,
+          vectorIndex: getVectorIndex(),
+        });
+
+        if (
+          reqSeq !== reviewRequestSeqRef.current ||
+          epochAtStart !== workspaceEpochRef.current ||
+          controller.signal.aborted
+        ) {
+          return null;
+        }
+
+        setCodeReviewProgress({
+          phase: 'reviewing',
+          completedBatches: 0,
+          totalBatches: 1,
+          currentLabel: scope?.symbolName
+            ? `Analyzing ${scope.symbolType} ${scope.symbolName} in ${targetPath}...`
+            : `Analyzing ${targetPath} with Gemini...`,
+        });
+
+        const data = await requestFileReview({
+          file: targetFile,
+          scope,
+          supportingChunks,
+          projectName,
+          signal: controller.signal,
+        });
+
+        if (
+          reqSeq !== reviewRequestSeqRef.current ||
+          epochAtStart !== workspaceEpochRef.current ||
+          controller.signal.aborted
+        ) {
+          return null;
+        }
+
+        const reviewRecord = {
+          mode: 'file',
+          targetFileId: targetFile.id,
+          targetFile: data.targetFile || targetPath,
+          scope: data.scope || null,
+          reviewedRange: data.reviewedRange || null,
+          truncated: Boolean(data.truncated),
+          supportingContextCount: supportingChunks.length,
+          summary: data.summary,
+          findings: data.findings || [],
+          totalFindings: data.totalFindings || 0,
+          severityBreakdown: data.severityBreakdown,
+          model: data.model,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+
+        setCodeReviewResult(reviewRecord);
+        setIsReviewingCode(false);
+        setCodeReviewProgress(null);
+        setAssistantBackendStatus((prev) => ({
+          ...prev,
+          checked: true,
+          reachable: true,
+          geminiConfigured: true,
+          model: data.model || prev.model,
+          error: null,
+        }));
+        if (reviewAbortControllerRef.current === controller) {
+          reviewAbortControllerRef.current = null;
+        }
+
+        addActivity(
+          'search',
+          `AI Code Review: ${targetFile.name}`,
+          `Found ${reviewRecord.totalFindings} issue${reviewRecord.totalFindings === 1 ? '' : 's'} in ${targetPath}${scope?.symbolName ? ` (${scope.symbolName})` : ''}.`
+        );
+
+        return reviewRecord;
+      } catch (err) {
+        if (reviewAbortControllerRef.current === controller) {
+          reviewAbortControllerRef.current = null;
+        }
+        if (
+          err?.name === 'AbortError' ||
+          reqSeq !== reviewRequestSeqRef.current ||
+          epochAtStart !== workspaceEpochRef.current
+        ) {
+          return null;
+        }
+
+        const errorCode = err?.code || 'REVIEW_FAILED';
+        const errorMessage = err?.message || 'Failed to complete AI Code Review.';
+        setCodeReviewError({ code: errorCode, message: errorMessage });
+        if (errorCode === 'MISSING_API_KEY') {
+          setAssistantBackendStatus((prev) => ({
+            ...prev,
+            checked: true,
+            reachable: true,
+            geminiConfigured: false,
+            error: errorMessage,
+          }));
+        } else if (errorCode === 'BACKEND_UNREACHABLE') {
+          setAssistantBackendStatus((prev) => ({
+            ...prev,
+            checked: true,
+            reachable: false,
+            error: errorMessage,
+          }));
+        }
+        setIsReviewingCode(false);
+        setCodeReviewProgress(null);
+        return null;
+      }
+    },
+    [files, searchArtifacts, projectName, getVectorIndex, addActivity]
+  );
+
+  const runProjectCodeReview = useCallback(async () => {
+    const { prioritizedFiles, batches, skippedCount } = buildProjectReviewBatches(files);
+    if (batches.length === 0) {
+      setCodeReviewError({
+        code: 'NO_REVIEWABLE_FILES',
+        message: 'No non-empty source code files are available to review in this workspace.',
+      });
+      return null;
+    }
+
+    if (reviewAbortControllerRef.current) {
+      reviewAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    reviewAbortControllerRef.current = controller;
+
+    const reqSeq = ++reviewRequestSeqRef.current;
+    const epochAtStart = workspaceEpochRef.current;
+
+    setIsReviewingCode(true);
+    setCodeReviewError(null);
+    const batchResults = [];
+
+    try {
+      for (let i = 0; i < batches.length; i++) {
+        if (
+          reqSeq !== reviewRequestSeqRef.current ||
+          epochAtStart !== workspaceEpochRef.current ||
+          controller.signal.aborted
+        ) {
+          return null;
+        }
+
+        const batch = batches[i];
+        const batchLabels = batch.map((f) => f.name).join(', ');
+        setCodeReviewProgress({
+          phase: 'reviewing_batch',
+          completedBatches: i,
+          totalBatches: batches.length,
+          currentLabel: `Reviewing batch ${i + 1} of ${batches.length}: ${batchLabels}`,
+        });
+
+        const data = await requestProjectBatchReview({
+          files: batch,
+          projectName,
+          signal: controller.signal,
+        });
+
+        batchResults.push(data);
+      }
+
+      if (
+        reqSeq !== reviewRequestSeqRef.current ||
+        epochAtStart !== workspaceEpochRef.current ||
+        controller.signal.aborted
+      ) {
+        return null;
+      }
+
+      const aggregated = aggregateProjectReviewResults(batchResults, {
+        reviewedFileCount: prioritizedFiles.length,
+        skippedCount,
+      });
+
+      setCodeReviewResult(aggregated);
+      setIsReviewingCode(false);
+      setCodeReviewProgress(null);
+      if (reviewAbortControllerRef.current === controller) {
+        reviewAbortControllerRef.current = null;
+      }
+
+      addActivity(
+        'search',
+        `Full-Project AI Code Review`,
+        `Reviewed ${aggregated.reviewedFiles.length} files across ${batches.length} batch${batches.length === 1 ? '' : 'es'} — ${aggregated.totalFindings} finding${aggregated.totalFindings === 1 ? '' : 's'}.`
+      );
+
+      return aggregated;
+    } catch (err) {
+      if (reviewAbortControllerRef.current === controller) {
+        reviewAbortControllerRef.current = null;
+      }
+      if (
+        err?.name === 'AbortError' ||
+        reqSeq !== reviewRequestSeqRef.current ||
+        epochAtStart !== workspaceEpochRef.current
+      ) {
+        return null;
+      }
+
+      // Preserve any completed batch findings if a later batch hit a rate limit or timeout
+      if (batchResults.length > 0) {
+        const partial = aggregateProjectReviewResults(batchResults, {
+          reviewedFileCount: batchResults.reduce((acc, b) => acc + (b.reviewedFiles?.length || 0), 0),
+          skippedCount,
+        });
+        setCodeReviewResult(partial);
+      }
+
+      setCodeReviewError({
+        code: err?.code || 'PROJECT_REVIEW_FAILED',
+        message:
+          batchResults.length > 0
+            ? `Stopped after ${batchResults.length} of ${batches.length} batches: ${err?.message}`
+            : err?.message || 'Failed to complete full-project review.',
+      });
+      setIsReviewingCode(false);
+      setCodeReviewProgress(null);
+      return null;
+    }
+  }, [files, projectName, addActivity]);
+
+  const dismissImpactError = useCallback(() => {
+    setImpactError(null);
+  }, []);
+
+  const cancelImpactAnalysis = useCallback(() => {
+    impactRequestSeqRef.current += 1;
+    if (impactAbortControllerRef.current) {
+      impactAbortControllerRef.current.abort();
+      impactAbortControllerRef.current = null;
+    }
+    setIsAnalyzingImpact(false);
+    setImpactProgress(null);
+  }, []);
+
+  const clearImpactAnalysis = useCallback(() => {
+    cancelImpactAnalysis();
+    setImpactAnalysis(null);
+    setImpactError(null);
+  }, [cancelImpactAnalysis]);
+
+  const selectImpactHistoryItem = useCallback((historyId) => {
+    setImpactHistory((prev) => {
+      const match = prev.find((item) => item.id === historyId);
+      if (match) {
+        setImpactAnalysis(match);
+        setImpactError(null);
+      }
+      return prev;
+    });
+  }, []);
+
+  const runChangeImpactAnalysis = useCallback(
+    async ({ description = '', targetSelection = null } = {}) => {
+      const cleanDescription = typeof description === 'string' ? description.trim() : '';
+      if (!cleanDescription && !targetSelection?.fileId) {
+        setImpactError({
+          code: 'EMPTY_DESCRIPTION',
+          message: 'Describe the proposed code or architecture change, or pick a specific file/symbol target.',
+        });
+        return null;
+      }
+
+      if (files.length === 0) {
+        setImpactError({
+          code: 'EMPTY_WORKSPACE',
+          message: 'Load or import a repository before running a Change Impact simulation.',
+        });
+        return null;
+      }
+
+      if (impactAbortControllerRef.current) {
+        impactAbortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      impactAbortControllerRef.current = controller;
+
+      const reqSeq = ++impactRequestSeqRef.current;
+      const epochAtStart = workspaceEpochRef.current;
+      const effectiveDescription =
+        cleanDescription ||
+        `Modify ${targetSelection?.symbolName ? `${targetSelection.symbolName} in ` : ''}${targetSelection?.filePath || 'selected file'}`;
+
+      const isStale = () =>
+        reqSeq !== impactRequestSeqRef.current ||
+        epochAtStart !== workspaceEpochRef.current ||
+        controller.signal.aborted;
+
+      setIsAnalyzingImpact(true);
+      setImpactError(null);
+      setImpactProgress({
+        phase: 'parsing',
+        label: 'Parsing proposed change & identifying workspace targets...',
+      });
+
+      const parsedChange = parseChangeDescription(effectiveDescription);
+
+      try {
+        const resolution = await resolveChangeTargets({
+          changeDescription: effectiveDescription,
+          parsedChange,
+          targetSelection,
+          files,
+          chunks: searchArtifacts.chunks,
+          bm25Index: searchArtifacts.bm25Index,
+          vectorIndex: getVectorIndex(),
+        });
+
+        if (isStale()) return null;
+
+        if (resolution.status === 'ambiguous') {
+          const ambiguousRecord = {
+            id: `impact-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            proposedChange: effectiveDescription,
+            status: 'ambiguous',
+            parsedChange,
+            resolvedTargets: resolution.targets,
+            ambiguity: resolution.ambiguity,
+            retrievalMode: resolution.retrievalMode,
+            semanticUsed: resolution.semanticUsed,
+            impactedComponents: [],
+            directDependents: [],
+            indirectDependents: [],
+            sharedDependencies: [],
+            relatedContext: [],
+            dependencyPaths: [],
+            graphData: null,
+            findings: [],
+            totalFindings: 0,
+            severityBreakdown: { Critical: 0, High: 0, Medium: 0, Low: 0, Informational: 0 },
+            overallAssessment: 'Insufficient Evidence',
+            overallConfidence: 'Low',
+            blastRadiusScore: 0,
+            executiveSummary:
+              resolution.ambiguity?.reason ||
+              'Multiple matching targets were found. Select the intended file or symbol to narrow the simulation.',
+            testRecommendations: {
+              totalWorkspaceTestFiles: 0,
+              existingTests: [],
+              recommendedNewTests: [],
+            },
+            changeSequence: [],
+            uncertainties: resolution.notes || [],
+            reasoningMode: 'deterministic_only',
+          };
+          setImpactAnalysis(ambiguousRecord);
+          setIsAnalyzingImpact(false);
+          setImpactProgress(null);
+          if (impactAbortControllerRef.current === controller) {
+            impactAbortControllerRef.current = null;
+          }
+          return ambiguousRecord;
+        }
+
+        if (resolution.status === 'not_found' || resolution.targets.length === 0) {
+          const notFoundRecord = {
+            id: `impact-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            proposedChange: effectiveDescription,
+            status: 'not_found',
+            parsedChange,
+            resolvedTargets: [],
+            ambiguity: null,
+            retrievalMode: resolution.retrievalMode,
+            semanticUsed: resolution.semanticUsed,
+            impactedComponents: [],
+            directDependents: [],
+            indirectDependents: [],
+            sharedDependencies: [],
+            relatedContext: [],
+            dependencyPaths: [],
+            graphData: null,
+            findings: [],
+            totalFindings: 0,
+            severityBreakdown: { Critical: 0, High: 0, Medium: 0, Low: 0, Informational: 0 },
+            overallAssessment: 'Insufficient Evidence',
+            overallConfidence: 'High',
+            blastRadiusScore: 0,
+            executiveSummary:
+              'No matching files, symbols, or architectural references were found in the loaded workspace for this change description. No fabricated findings were generated.',
+            testRecommendations: {
+              totalWorkspaceTestFiles: 0,
+              existingTests: [],
+              recommendedNewTests: [],
+            },
+            changeSequence: [],
+            uncertainties: resolution.notes || [],
+            reasoningMode: 'deterministic_only',
+          };
+          setImpactAnalysis(notFoundRecord);
+          setIsAnalyzingImpact(false);
+          setImpactProgress(null);
+          if (impactAbortControllerRef.current === controller) {
+            impactAbortControllerRef.current = null;
+          }
+          return notFoundRecord;
+        }
+
+        setImpactProgress({
+          phase: 'traversing',
+          label: `Tracing reverse dependencies from ${resolution.targets.length} resolved target${resolution.targets.length === 1 ? '' : 's'}...`,
+        });
+
+        const traversal = traverseDependencyImpact(resolution.targets, files);
+        const testIntelligence = discoverTestIntelligence({
+          resolvedTargets: resolution.targets,
+          traversal,
+          files,
+          parsedChange,
+        });
+
+        setImpactProgress({
+          phase: 'retrieving',
+          label: 'Collecting bounded source snippets & AST dependency context...',
+        });
+
+        const contextBundle = await collectBoundedImpactContext({
+          changeDescription: effectiveDescription,
+          resolvedTargets: resolution.targets,
+          traversal,
+          testIntelligence,
+          files,
+          chunks: searchArtifacts.chunks,
+          bm25Index: searchArtifacts.bm25Index,
+          vectorIndex: getVectorIndex(),
+        });
+
+        if (isStale()) return null;
+
+        const baseUncertainties = collectDeterministicUncertainties({
+          resolvedTargets: resolution.targets,
+          traversal,
+          testIntelligence,
+          files,
+        });
+        const baseGraphOverlay = buildImpactGraphOverlay({
+          resolvedTargets: resolution.targets,
+          traversal,
+          findings: [],
+        });
+
+        setImpactProgress({
+          phase: 'reasoning',
+          label: `Simulating behavioral breakages across ${traversal.impactedComponents.length} component${traversal.impactedComponents.length === 1 ? '' : 's'} with Gemini...`,
+        });
+
+        try {
+          const aiData = await requestImpactReasoning({
+            proposedChange: effectiveDescription,
+            projectName,
+            parsedChange,
+            resolvedTargets: resolution.targets,
+            impactedComponents: traversal.impactedComponents,
+            dependencyPaths: traversal.dependencyPaths,
+            snippets: contextBundle.snippets,
+            existingTests: testIntelligence.existingTests,
+            signal: controller.signal,
+          });
+
+          if (isStale()) return null;
+
+          const mergedTests = {
+            totalWorkspaceTestFiles: testIntelligence.totalWorkspaceTestFiles,
+            existingTests: testIntelligence.existingTests,
+            recommendedNewTests: [
+              ...testIntelligence.recommendedNewTests,
+              ...(aiData.additionalTestRecommendations || []),
+            ],
+          };
+
+          const mergedUncertainties = Array.from(
+            new Set([
+              ...baseUncertainties,
+              ...(aiData.additionalUncertainties || []),
+            ])
+          );
+
+          const graphData = buildImpactGraphOverlay({
+            resolvedTargets: resolution.targets,
+            traversal,
+            findings: aiData.findings || [],
+          });
+
+          const fullRecord = {
+            id: `impact-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            proposedChange: effectiveDescription,
+            status: 'completed',
+            parsedChange,
+            resolvedTargets: resolution.targets,
+            ambiguity: null,
+            retrievalMode: contextBundle.retrievalMode || resolution.retrievalMode,
+            semanticUsed: Boolean(contextBundle.semanticUsed || resolution.semanticUsed),
+            impactedComponents: traversal.impactedComponents,
+            directDependents: traversal.directDependents,
+            indirectDependents: traversal.indirectDependents,
+            sharedDependencies: traversal.sharedDependencies,
+            relatedContext: traversal.relatedContext,
+            dependencyPaths: traversal.dependencyPaths,
+            cyclesDetected: traversal.cyclesDetected,
+            traversalTruncated: traversal.traversalTruncated,
+            graphData,
+            findings: aiData.findings || [],
+            totalFindings: aiData.totalFindings || 0,
+            severityBreakdown: aiData.severityBreakdown,
+            overallAssessment: aiData.overallAssessment || 'Moderate Impact',
+            overallConfidence:
+              (aiData.findings || []).some((f) => f.evidenceType === 'verified_dependency' || f.evidenceType === 'evidence_backed_impact')
+                ? (aiData.findings || []).some((f) => f.confidence === 'High')
+                  ? 'High'
+                  : 'Medium'
+                : 'Low',
+            blastRadiusScore: Math.min(
+              100,
+              traversal.directDependents.length * 18 +
+                traversal.indirectDependents.length * 10 +
+                (aiData.totalFindings || 0) * 6
+            ),
+            executiveSummary: aiData.executiveSummary,
+            testRecommendations: mergedTests,
+            changeSequence: aiData.changeSequence || [],
+            uncertainties: mergedUncertainties,
+            rejectedFindingsCount: aiData.rejectedFindingsCount || 0,
+            model: aiData.model,
+            reasoningMode: 'grounded_ai',
+          };
+
+          setImpactAnalysis(fullRecord);
+          setImpactHistory((prev) => [fullRecord, ...prev].slice(0, 10));
+          setIsAnalyzingImpact(false);
+          setImpactProgress(null);
+          setAssistantBackendStatus((prev) => ({
+            ...prev,
+            checked: true,
+            reachable: true,
+            geminiConfigured: true,
+            model: aiData.model || prev.model,
+            error: null,
+          }));
+          if (impactAbortControllerRef.current === controller) {
+            impactAbortControllerRef.current = null;
+          }
+
+          addActivity(
+            'search',
+            'Change Impact Simulation',
+            `Analyzed "${effectiveDescription.slice(0, 60)}${effectiveDescription.length > 60 ? '...' : ''}" — ${traversal.impactedComponents.length} components, ${fullRecord.totalFindings} risks.`
+          );
+
+          return fullRecord;
+        } catch (aiErr) {
+          if (impactAbortControllerRef.current === controller) {
+            impactAbortControllerRef.current = null;
+          }
+          if (aiErr?.name === 'AbortError' || isStale()) {
+            return null;
+          }
+
+          // Preserve deterministic dependency & test analysis even when Gemini / backend fails
+          const partialRecord = {
+            id: `impact-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            proposedChange: effectiveDescription,
+            status: 'partial_deterministic',
+            parsedChange,
+            resolvedTargets: resolution.targets,
+            ambiguity: null,
+            retrievalMode: contextBundle.retrievalMode || resolution.retrievalMode,
+            semanticUsed: Boolean(contextBundle.semanticUsed || resolution.semanticUsed),
+            impactedComponents: traversal.impactedComponents,
+            directDependents: traversal.directDependents,
+            indirectDependents: traversal.indirectDependents,
+            sharedDependencies: traversal.sharedDependencies,
+            relatedContext: traversal.relatedContext,
+            dependencyPaths: traversal.dependencyPaths,
+            cyclesDetected: traversal.cyclesDetected,
+            traversalTruncated: traversal.traversalTruncated,
+            graphData: baseGraphOverlay,
+            findings: [],
+            totalFindings: 0,
+            severityBreakdown: { Critical: 0, High: 0, Medium: 0, Low: 0, Informational: 0 },
+            overallAssessment:
+              traversal.directDependents.length > 0 ? 'Moderate Impact' : 'Low Impact',
+            overallConfidence: 'Medium',
+            blastRadiusScore: Math.min(100, traversal.impactedComponents.length * 12),
+            executiveSummary: `Deterministic dependency mapping identified ${traversal.impactedComponents.length} affected component${traversal.impactedComponents.length === 1 ? '' : 's'} (${traversal.directDependents.length} direct, ${traversal.indirectDependents.length} indirect dependent${traversal.indirectDependents.length === 1 ? '' : 's'}). AI risk reasoning could not complete (${aiErr?.message || 'backend unavailable'}).`,
+            testRecommendations: testIntelligence,
+            changeSequence: [],
+            uncertainties: [
+              ...baseUncertainties,
+              `AI reasoning unavailable (${aiErr?.message || 'connection error'}); semantic behavioral risks were not evaluated by Gemini.`,
+            ],
+            reasoningMode: 'deterministic_partial',
+          };
+
+          setImpactAnalysis(partialRecord);
+          setImpactError({
+            code: aiErr?.code || 'IMPACT_REASONING_FAILED',
+            message: aiErr?.message || 'Failed to run Gemini impact reasoning.',
+          });
+          if (aiErr?.code === 'MISSING_API_KEY') {
+            setAssistantBackendStatus((prev) => ({
+              ...prev,
+              checked: true,
+              reachable: true,
+              geminiConfigured: false,
+              error: aiErr.message,
+            }));
+          } else if (aiErr?.code === 'BACKEND_UNREACHABLE') {
+            setAssistantBackendStatus((prev) => ({
+              ...prev,
+              checked: true,
+              reachable: false,
+              geminiConfigured: false,
+              error: aiErr.message,
+            }));
+          }
+          setIsAnalyzingImpact(false);
+          setImpactProgress(null);
+          return partialRecord;
+        }
+      } catch (err) {
+        if (impactAbortControllerRef.current === controller) {
+          impactAbortControllerRef.current = null;
+        }
+        if (err?.name === 'AbortError' || isStale()) {
+          return null;
+        }
+        setImpactError({
+          code: err?.code || 'IMPACT_ANALYSIS_FAILED',
+          message: err?.message || 'Failed to analyze proposed change.',
+        });
+        setIsAnalyzingImpact(false);
+        setImpactProgress(null);
+        return null;
+      }
+    },
+    [files, searchArtifacts, projectName, getVectorIndex, addActivity]
+  );
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -1538,6 +2301,25 @@ const removeFile = useCallback(async (fileId) => {
         cancelAssistantRequest,
         refreshAssistantHealth,
         dismissAssistantError,
+        codeReviewResult,
+        isReviewingCode,
+        codeReviewProgress,
+        codeReviewError,
+        runFileCodeReview,
+        runProjectCodeReview,
+        cancelCodeReview,
+        clearCodeReview,
+        dismissCodeReviewError,
+        impactAnalysis,
+        impactHistory,
+        isAnalyzingImpact,
+        impactProgress,
+        impactError,
+        runChangeImpactAnalysis,
+        selectImpactHistoryItem,
+        cancelImpactAnalysis,
+        clearImpactAnalysis,
+        dismissImpactError,
         placeholderModal,
         openPlaceholder,
         closePlaceholder,
