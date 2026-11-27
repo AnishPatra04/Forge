@@ -12,6 +12,9 @@ import {
   ExternalLink,
   ChevronRight,
   Folder,
+  Layers,
+  BookOpen,
+  FlaskConical,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 
@@ -21,6 +24,9 @@ export function Sidebar({ isCollapsed = false, onToggle: _onToggle }) {
     setActiveTab,
     projectName,
     files,
+    architectureModel,
+    interviewPrep,
+    testSuiteResult,
     activityLog,
     loadSampleProject,
     openPlaceholder,
@@ -48,6 +54,36 @@ export function Sidebar({ isCollapsed = false, onToggle: _onToggle }) {
       icon: Network,
       badge: null,
       desc: 'Visual dependency graph',
+    },
+    {
+      id: 'architecture',
+      label: 'Architecture',
+      icon: Layers,
+      badge:
+        files.length > 0 && architectureModel?.summary?.totalModules > 0
+          ? `${architectureModel.summary.totalModules}`
+          : null,
+      desc: 'System architecture diagrams',
+    },
+    {
+      id: 'interview',
+      label: 'Interview Prep',
+      icon: BookOpen,
+      badge:
+        files.length > 0 && interviewPrep?.summary?.totalQuestions > 0
+          ? `${interviewPrep.summary.totalQuestions}`
+          : null,
+      desc: 'Technical interview questions',
+    },
+    {
+      id: 'tests',
+      label: 'Test Cases',
+      icon: FlaskConical,
+      badge:
+        files.length > 0 && testSuiteResult?.plan?.summary?.totalTargets > 0
+          ? `${testSuiteResult.plan.summary.totalTargets}`
+          : null,
+      desc: 'Review-gated draft test suites',
     },
     {
       id: 'projects',
