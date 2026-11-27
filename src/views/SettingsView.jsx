@@ -130,7 +130,7 @@ export function SettingsView() {
           <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
             FORGE combines client-side AST parsing, dependency graph visualization, local ONNX embeddings, and a grounded Google Gemini RAG backend so developers can inspect, search, question, and review unfamiliar codebases with verifiable line-level citations.
           </p>
-          <div className="p-3 rounded-md bg-[#0E120F] border border-border text-xs text-muted-foreground leading-relaxed font-mono">
+          <div className="p-3 rounded-md bg-[#111215] border border-border text-xs text-muted-foreground leading-relaxed font-mono">
             "FORGE treats your codebase as structured knowledge, bridging raw source files and grounded semantic comprehension."
           </div>
         </div>
@@ -156,13 +156,13 @@ export function SettingsView() {
                 </div>
                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
                   <div>
-                    <div className="flex items-center gap-1.5 font-mono text-[10px] text-success font-medium mb-2.5 uppercase tracking-wider">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Implemented
+                    <div className="flex items-center gap-1.5 font-mono text-[10px] text-white font-medium mb-2.5 uppercase tracking-wider">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-white/80" /> Implemented
                     </div>
                     <ul className="space-y-2">
                       {group.implemented.map((item, i) => (
                         <li key={i} className="flex items-start gap-2 text-foreground/90">
-                          <span className="w-1.5 h-1.5 rounded-full bg-success mt-1.5 shrink-0" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-white/70 mt-1.5 shrink-0" />
                           <span>{item}</span>
                         </li>
                       ))}
@@ -170,7 +170,7 @@ export function SettingsView() {
                   </div>
 
                   <div>
-                    <div className="flex items-center gap-1.5 font-mono text-[10px] text-primary font-medium mb-2.5 uppercase tracking-wider">
+                    <div className="flex items-center gap-1.5 font-mono text-[10px] text-white/70 font-medium mb-2.5 uppercase tracking-wider">
                       <Clock className="w-3.5 h-3.5" /> Planned
                     </div>
                     <ul className="space-y-2">
@@ -195,19 +195,19 @@ export function SettingsView() {
             Runtime Diagnostics
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-[11px] text-foreground">
-            <div className="p-2.5 rounded-md bg-[#0E120F] border border-border">
+            <div className="p-2.5 rounded-md bg-[#111215] border border-border">
               <span className="text-muted-foreground block text-[10px]">Loaded Files</span>
               <span>{files.length}</span>
             </div>
-            <div className="p-2.5 rounded-md bg-[#0E120F] border border-border">
+            <div className="p-2.5 rounded-md bg-[#111215] border border-border">
               <span className="text-muted-foreground block text-[10px]">Lines Scanned</span>
               <span>{totalLines.toLocaleString()} LOC</span>
             </div>
-            <div className="p-2.5 rounded-md bg-[#0E120F] border border-border">
+            <div className="p-2.5 rounded-md bg-[#111215] border border-border">
               <span className="text-muted-foreground block text-[10px]">Memory Footprint</span>
               <span>{totalSizeKb} KB</span>
             </div>
-            <div className="p-2.5 rounded-md bg-[#0E120F] border border-border">
+            <div className="p-2.5 rounded-md bg-[#111215] border border-border">
               <span className="text-muted-foreground block text-[10px]">Persistence</span>
               {storageStatus === 'ready' ? (
                 <span className="text-success">IndexedDB Active</span>

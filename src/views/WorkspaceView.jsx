@@ -280,7 +280,7 @@ export function WorkspaceView() {
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-primary hover:bg-[#D2FA81] text-primary-foreground shadow-sm  transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-primary hover:bg-white/90 text-primary-foreground shadow-sm  transition-colors"
               >
                 <UploadCloud className="w-4 h-4" />
                 <span>Import Files</span>
@@ -326,7 +326,7 @@ export function WorkspaceView() {
                 <>
                   <button
                     onClick={retryRestoreWorkspace}
-                    className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-500/20 hover:bg-amber-500/30 text-foreground border border-amber-500/40 transition-colors"
+                    className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-white/10 hover:bg-white/15 text-white border border-white/20 transition-colors"
                   >
                     Retry Restore
                   </button>
@@ -362,7 +362,7 @@ export function WorkspaceView() {
                 hasUnsavedChanges && (
                   <button
                     onClick={() => syncWorkspaceToStorage()}
-                    className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-500/20 hover:bg-amber-500/30 text-foreground border border-amber-500/40 transition-colors"
+                    className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-white/10 hover:bg-white/15 text-white border border-white/20 transition-colors"
                   >
                     Retry Sync
                   </button>
@@ -373,7 +373,7 @@ export function WorkspaceView() {
                   setConfirmOverwriteStorage(false);
                   dismissStorageError();
                 }}
-                className="text-warning hover:text-amber-100 p-1"
+                className="text-white/60 hover:text-white p-1"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -420,7 +420,7 @@ export function WorkspaceView() {
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-md text-xs font-semibold bg-primary hover:bg-[#D2FA81] text-primary-foreground transition-colors cursor-pointer"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-md text-xs font-semibold bg-primary hover:bg-white/90 text-primary-foreground transition-colors cursor-pointer"
                 >
                   <UploadCloud className="w-4 h-4" />
                   Choose Files from Computer
@@ -507,14 +507,14 @@ export function WorkspaceView() {
                 lastImportSummary.stats?.cappedCount > 0 ||
                 lastImportSummary.stats?.oversizedCount > 0 ||
                 lastImportSummary.duplicateCount > 0) && (
-                <div className="p-3.5 rounded-lg bg-warning/10 border border-amber-800/50 text-xs text-foreground flex items-start justify-between gap-3">
+                <div className="p-3.5 rounded-lg bg-white/5 border border-white/10 text-xs text-foreground flex items-start justify-between gap-3">
                   <div className="flex items-start gap-2.5">
-                    <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                    <AlertCircle className="w-4 h-4 text-white/80 shrink-0 mt-0.5" />
                     <div className="space-y-0.5">
-                      <p className="font-medium">
+                      <p className="font-medium text-white">
                         GitHub Import Summary for <span className="font-mono">{lastImportSummary.repoLabel}</span> ({lastImportSummary.branch})
                       </p>
-                      <p className="text-[11px] text-warning/90 font-mono">
+                      <p className="text-[11px] text-white/60 font-mono">
                         Loaded {lastImportSummary.addedCount} files
                         {lastImportSummary.duplicateCount > 0 ? ` • ${lastImportSummary.duplicateCount} existing paths preserved` : ''}
                         {lastImportSummary.stats?.failedCount > 0 ? ` • ${lastImportSummary.stats.failedCount} download(s) failed` : ''}
@@ -524,7 +524,7 @@ export function WorkspaceView() {
                       </p>
                     </div>
                   </div>
-                  <button onClick={dismissImportSummary} className="text-warning hover:text-amber-100 p-1">
+                  <button onClick={dismissImportSummary} className="text-white/60 hover:text-white p-1">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -546,11 +546,11 @@ export function WorkspaceView() {
                           if (e.key === 'Escape') setIsEditingName(false);
                         }}
                         autoFocus
-                        className="px-3 py-1.5 bg-[#0E120F] border border-primary rounded-md text-sm font-semibold text-foreground focus:outline-hidden"
+                        className="px-3 py-1.5 bg-[#111215] border border-primary rounded-md text-sm font-semibold text-foreground focus:outline-hidden"
                       />
                       <button
                         onClick={handleNameSave}
-                        className="p-1.5 rounded-lg bg-primary hover:bg-[#D2FA81] text-primary-foreground transition-colors"
+                        className="p-1.5 rounded-lg bg-primary hover:bg-white/90 text-primary-foreground transition-colors"
                         title="Save name"
                       >
                         <Check className="w-4 h-4" />
@@ -779,7 +779,7 @@ export function WorkspaceView() {
                       <div
                         role="group"
                         aria-label="Search mode"
-                        className="inline-flex items-center p-0.5 rounded-lg bg-[#0E120F] border border-border"
+                        className="inline-flex items-center p-0.5 rounded-lg bg-[#111215] border border-border"
                       >
                         {[
                           { id: 'keyword', label: 'Keyword' },
@@ -863,7 +863,7 @@ export function WorkspaceView() {
 
                       if (status === 'ready') {
                         return (
-                          <div className="mt-3 px-3 py-2 rounded-lg bg-[#0E120F] border border-border text-[11px] text-muted-foreground flex items-center justify-between gap-2">
+                          <div className="mt-3 px-3 py-2 rounded-lg bg-[#111215] border border-border text-[11px] text-muted-foreground flex items-center justify-between gap-2">
                             <span className="flex items-center gap-2">
                               <span className="w-2 h-2 rounded-full bg-success shrink-0" />
                               <span className="text-foreground/90 font-medium">Semantic Index Ready</span>
@@ -877,7 +877,7 @@ export function WorkspaceView() {
                       }
 
                       return (
-                        <div className="mt-3 p-3 rounded-lg bg-[#0E120F] border border-border text-[11px] text-muted-foreground leading-normal flex items-start gap-2.5">
+                        <div className="mt-3 p-3 rounded-lg bg-[#111215] border border-border text-[11px] text-muted-foreground leading-normal flex items-start gap-2.5">
                           <AlertCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                           <div>
                             <strong className="text-foreground/90">Client-Side Hybrid Search:</strong>{' '}
@@ -897,7 +897,7 @@ export function WorkspaceView() {
                         value={localInputQuery}
                         onChange={handleSearchInputChange}
                         placeholder="Ask a question or enter keywords (e.g., auth, token, retry, database)..."
-                        className="w-full bg-[#0E120F] border border-white/15 focus:border-primary rounded-lg pl-10 pr-28 py-2.5 text-xs text-foreground placeholder-slate-400 focus:outline-none transition-colors"
+                        className="w-full bg-[#111215] border border-white/15 focus:border-primary rounded-lg pl-10 pr-28 py-2.5 text-xs text-foreground placeholder-slate-400 focus:outline-none transition-colors"
                       />
                       {isSearching ? (
                         <Loader2 className="w-4 h-4 text-primary animate-spin absolute left-3.5 top-3" />
@@ -916,7 +916,7 @@ export function WorkspaceView() {
                       )}
                       <button
                         type="submit"
-                        className="absolute right-2 top-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-primary hover:bg-[#D2FA81] text-primary-foreground transition-colors"
+                        className="absolute right-2 top-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-primary hover:bg-white/90 text-primary-foreground transition-colors"
                       >
                         {isSearching ? 'Searching...' : 'Search'}
                       </button>
@@ -943,7 +943,7 @@ export function WorkspaceView() {
                   {/* Search Results Display */}
                   <div className="pt-2">
                     {searchQuery && searchResults === null && isSearching && (
-                      <div className="p-8 text-center rounded-lg bg-[#0E120F]/40 border border-border">
+                      <div className="p-8 text-center rounded-lg bg-[#111215]/40 border border-border">
                         <Loader2 className="w-7 h-7 text-primary animate-spin mx-auto mb-2" />
                         <p className="text-xs font-medium text-foreground/90">
                           Searching "{searchQuery}"...
@@ -996,7 +996,7 @@ export function WorkspaceView() {
                         </div>
 
                         {searchResults.length === 0 ? (
-                          <div className="p-8 text-center rounded-lg bg-[#0E120F]/40 border border-border">
+                          <div className="p-8 text-center rounded-lg bg-[#111215]/40 border border-border">
                             <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                             <p className="text-xs font-medium text-foreground/90 mb-1">
                               No matching code snippets found
@@ -1013,7 +1013,7 @@ export function WorkspaceView() {
                               return (
                                 <div
                                   key={res.fileId}
-                                  className="rounded-lg bg-[#0E120F] border border-border overflow-hidden"
+                                  className="rounded-lg bg-[#111215] border border-border overflow-hidden"
                                 >
                                   {/* Result File Header */}
                                   <div className="px-3.5 py-2 bg-muted border-b border-border flex items-center justify-between gap-2">
@@ -1082,7 +1082,7 @@ export function WorkspaceView() {
                     )}
 
                     {!searchQuery && (
-                      <div className="p-8 text-center rounded-lg bg-[#0E120F]/30 border border-border/40">
+                      <div className="p-8 text-center rounded-lg bg-[#111215]/30 border border-border/40">
                         <Search className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                         <p className="text-xs font-medium text-foreground/90 mb-1">
                           Search Across Ingested Code

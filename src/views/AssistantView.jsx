@@ -158,7 +158,7 @@ function FormattedAnswer({ content, sources = [], onOpenSource }) {
           return (
             <div
               key={idx}
-              className="rounded-md bg-[#0E120F] border border-border overflow-hidden my-2"
+              className="rounded-md bg-[#111215] border border-border overflow-hidden my-2"
             >
               {block.lang && (
                 <div className="px-3 py-1 bg-muted border-b border-border text-[10px] font-mono text-muted-foreground uppercase">
@@ -288,7 +288,7 @@ function SourceCitationCard({ source, isCited, onOpenSource }) {
       </div>
 
       {expanded && (
-        <div className="border-t border-border bg-[#0E120F] px-3 py-2">
+        <div className="border-t border-border bg-[#111215] px-3 py-2">
           <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground mb-1.5">
             <span>{source.filePath}</span>
             {source.symbolName && source.symbolName !== 'module' && (
@@ -496,7 +496,7 @@ export function AssistantView() {
                 <button
                   type="button"
                   onClick={loadSampleProject}
-                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-[#D2FA81] text-primary-foreground transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-white/90 text-primary-foreground transition-colors cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Load Sample Codebase</span>
@@ -691,7 +691,7 @@ export function AssistantView() {
       {/* Bottom Chat Composer */}
       <div className="px-4 sm:px-6 py-3 border-t border-border bg-sidebar shrink-0">
         <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
-          <div className="flex items-end gap-2 rounded-lg bg-[#0E120F] border border-border focus-within:border-primary p-2 transition-colors">
+          <div className="flex items-end gap-2 rounded-lg bg-[#111215] border border-border focus-within:border-primary p-2 transition-colors">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -708,7 +708,7 @@ export function AssistantView() {
             <button
               type="submit"
               disabled={!input.trim() || files.length === 0 || isAssistantLoading}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-[#D2FA81] disabled:bg-secondary disabled:text-muted-foreground text-primary-foreground transition-colors cursor-pointer disabled:cursor-not-allowed shrink-0"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-white/90 disabled:bg-secondary disabled:text-muted-foreground text-primary-foreground transition-colors cursor-pointer disabled:cursor-not-allowed shrink-0"
             >
               {isAssistantLoading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />

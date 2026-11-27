@@ -33,38 +33,38 @@ import {
 
 const SEVERITY_STYLES = {
   Critical: {
-    badge: 'bg-[#EF7777]/16 text-[#F59B9B] border-[#EF7777]/40',
-    card: 'border-[#EF7777]/50 bg-[#EF7777]/10',
-    stripe: 'border-l-[#EF7777]',
-    bar: 'bg-[#EF7777]',
-    count: 'text-[#EF7777]',
+    badge: 'bg-white/15 text-white font-semibold border-white/30',
+    card: 'border-white/25 bg-white/5',
+    stripe: 'border-l-white',
+    bar: 'bg-white',
+    count: 'text-white font-semibold',
   },
   High: {
-    badge: 'bg-[#E89B63]/16 text-[#F2B588] border-[#E89B63]/40',
-    card: 'border-[#E89B63]/50 bg-[#E89B63]/10',
-    stripe: 'border-l-[#E89B63]',
-    bar: 'bg-[#E89B63]',
-    count: 'text-[#E89B63]',
+    badge: 'bg-white/10 text-white/90 font-medium border-white/20',
+    card: 'border-white/20 bg-white/5',
+    stripe: 'border-l-white/70',
+    bar: 'bg-white/70',
+    count: 'text-white/90',
   },
   Medium: {
-    badge: 'bg-[#E8B66D]/16 text-[#E8B66D] border-[#E8B66D]/40',
-    card: 'border-[#E8B66D]/50 bg-[#E8B66D]/10',
-    stripe: 'border-l-[#E8B66D]',
-    bar: 'bg-[#E8B66D]',
-    count: 'text-[#E8B66D]',
+    badge: 'bg-white/5 text-white/70 border-white/15',
+    card: 'border-white/15 bg-white/5',
+    stripe: 'border-l-white/40',
+    bar: 'bg-white/40',
+    count: 'text-white/70',
   },
   Low: {
-    badge: 'bg-[#8CB8E8]/15 text-[#A6CBF2] border-[#8CB8E8]/35',
-    card: 'border-[#8CB8E8]/45 bg-[#8CB8E8]/10',
-    stripe: 'border-l-[#8CB8E8]',
-    bar: 'bg-[#8CB8E8]',
-    count: 'text-[#8CB8E8]',
+    badge: 'bg-white/5 text-white/50 border-white/10',
+    card: 'border-white/10 bg-white/5',
+    stripe: 'border-l-white/20',
+    bar: 'bg-white/20',
+    count: 'text-white/50',
   },
   Informational: {
-    badge: 'bg-secondary text-muted-foreground border-border',
-    card: 'border-white/20 bg-secondary',
-    stripe: 'border-l-white/25',
-    bar: 'bg-[#646E64]',
+    badge: 'bg-white/5 text-white/40 border-white/10',
+    card: 'border-white/10 bg-secondary',
+    stripe: 'border-l-white/10',
+    bar: 'bg-white/10',
     count: 'text-muted-foreground',
   },
 };
@@ -197,8 +197,8 @@ function FindingCard({ finding, onOpenFinding }) {
               } gap-3`}
             >
               {finding.currentCode && (
-                <div className="rounded-md bg-[#0E120F] border border-destructive/30 overflow-hidden">
-                  <div className="px-3 py-1.5 bg-destructive/10 border-b border-destructive/20 flex items-center justify-between text-[10px] font-mono text-destructive">
+                <div className="rounded-md bg-[#0D0E11] border border-white/15 overflow-hidden">
+                  <div className="px-3 py-1.5 bg-white/5 border-b border-white/10 flex items-center justify-between text-[10px] font-mono text-white/80">
                     <span>Current Code (L{finding.startLine}-L{finding.endLine})</span>
                     <span>Before</span>
                   </div>
@@ -209,8 +209,8 @@ function FindingCard({ finding, onOpenFinding }) {
               )}
 
               {finding.suggestedCode && (
-                <div className="rounded-md bg-[#0E120F] border border-success/30 overflow-hidden">
-                  <div className="px-3 py-1.5 bg-success/10 border-b border-success/20 flex items-center justify-between text-[10px] font-mono text-success">
+                <div className="rounded-md bg-[#0D0E11] border border-white/20 overflow-hidden">
+                  <div className="px-3 py-1.5 bg-white/10 border-b border-white/15 flex items-center justify-between text-[10px] font-mono text-white">
                     <span>Suggested Improvement</span>
                     <span>After</span>
                   </div>
@@ -338,7 +338,7 @@ export function CodeReviewView() {
           <div
             role="group"
             aria-label="Review scope mode"
-            className="inline-flex items-center p-0.5 rounded-md bg-[#0E120F] border border-border"
+            className="inline-flex items-center p-0.5 rounded-md bg-[#111215] border border-border"
           >
             <button
               type="button"
@@ -448,7 +448,7 @@ export function CodeReviewView() {
                 <button
                   type="button"
                   onClick={loadSampleProject}
-                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-[#D2FA81] text-primary-foreground transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-white text-primary-foreground transition-colors cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Load Sample Codebase</span>
@@ -477,7 +477,7 @@ export function CodeReviewView() {
                         value={effectiveFileId}
                         onChange={(e) => handleFileChange(e.target.value)}
                         disabled={isReviewingCode}
-                        className="w-full bg-[#0E120F] border border-border rounded-md px-3 py-2 text-xs font-mono text-foreground focus:outline-hidden focus:border-primary disabled:opacity-50"
+                        className="w-full bg-[#111215] border border-border rounded-md px-3 py-2 text-xs font-mono text-foreground focus:outline-hidden focus:border-primary disabled:opacity-50"
                       >
                         {files.map((f) => (
                           <option key={f.id} value={f.id}>
@@ -495,7 +495,7 @@ export function CodeReviewView() {
                         value={selectedSymbolId}
                         onChange={(e) => setSelectedSymbolId(e.target.value)}
                         disabled={isReviewingCode || reviewableSymbols.length === 0}
-                        className="w-full bg-[#0E120F] border border-border rounded-md px-3 py-2 text-xs font-mono text-foreground focus:outline-hidden focus:border-primary disabled:opacity-50"
+                        className="w-full bg-[#111215] border border-border rounded-md px-3 py-2 text-xs font-mono text-foreground focus:outline-hidden focus:border-primary disabled:opacity-50"
                       >
                         <option value="__full__">Entire File</option>
                         {reviewableSymbols.map((sym) => (
@@ -511,7 +511,7 @@ export function CodeReviewView() {
                         type="button"
                         onClick={handleStartReview}
                         disabled={isReviewingCode || !activeFile}
-                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-[#D2FA81] disabled:bg-secondary disabled:text-muted-foreground text-primary-foreground transition-colors cursor-pointer disabled:cursor-not-allowed"
+                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-white disabled:bg-secondary disabled:text-muted-foreground text-primary-foreground transition-colors cursor-pointer disabled:cursor-not-allowed"
                       >
                         {isReviewingCode ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -544,7 +544,7 @@ export function CodeReviewView() {
                       type="button"
                       onClick={handleStartReview}
                       disabled={isReviewingCode || projectPlan.batches.length === 0}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-[#D2FA81] disabled:bg-secondary disabled:text-muted-foreground text-primary-foreground transition-colors cursor-pointer disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-white disabled:bg-secondary disabled:text-muted-foreground text-primary-foreground transition-colors cursor-pointer disabled:cursor-not-allowed"
                     >
                       {isReviewingCode ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />

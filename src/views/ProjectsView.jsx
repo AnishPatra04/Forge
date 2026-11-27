@@ -93,7 +93,7 @@ export function ProjectsView() {
 
             <button
               onClick={openGitHubModal}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-[#D2FA81] text-primary-foreground transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold bg-primary hover:bg-white/90 text-primary-foreground transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Import from GitHub</span>

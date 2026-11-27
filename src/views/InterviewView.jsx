@@ -31,9 +31,9 @@ const EMPTY_INTERVIEW_PREP = {
 };
 
 const DIFFICULTY_STYLES = {
-  Easy: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25',
-  Medium: 'bg-amber-500/10 text-amber-300 border-amber-500/25',
-  Hard: 'bg-rose-500/10 text-rose-300 border-rose-500/25',
+  Easy: 'bg-white/10 text-white border-white/20',
+  Medium: 'bg-white/10 text-white/90 border-white/20',
+  Hard: 'bg-white/15 text-white font-semibold border-white/30',
 };
 
 function formatSingleQuestionText(q) {
@@ -237,20 +237,20 @@ export function InterviewView() {
           {questions.length > 0 && (
             <div className="hidden lg:flex items-center gap-1.5 text-[11px] font-mono">
               <span className="px-2 py-0.5 rounded bg-secondary border border-border text-foreground">
-                <span className="font-semibold text-indigo-400">{summary.totalQuestions}</span>{' '}
+                <span className="font-semibold text-white">{summary.totalQuestions}</span>{' '}
                 <span className="text-muted-foreground">questions</span>
               </span>
-              <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/25 text-emerald-300">
+              <span className="px-2 py-0.5 rounded bg-white/10 border border-white/20 text-white">
                 {summary.byDifficulty?.Easy || 0} Easy
               </span>
-              <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/25 text-amber-300">
+              <span className="px-2 py-0.5 rounded bg-white/10 border border-white/20 text-white">
                 {summary.byDifficulty?.Medium || 0} Med
               </span>
-              <span className="px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/25 text-rose-300">
+              <span className="px-2 py-0.5 rounded bg-white/10 border border-white/20 text-white font-semibold">
                 {summary.byDifficulty?.Hard || 0} Hard
               </span>
               <span className="px-2 py-0.5 rounded bg-secondary border border-border text-foreground">
-                <span className="font-semibold text-sky-400">{summary.coveredModules?.length || 0}</span>{' '}
+                <span className="font-semibold text-white">{summary.coveredModules?.length || 0}</span>{' '}
                 <span className="text-muted-foreground">modules</span>
               </span>
             </div>
@@ -330,16 +330,16 @@ export function InterviewView() {
                 <div className="text-lg font-bold text-foreground font-mono mt-0.5">{summary.totalQuestions}</div>
               </div>
               <div className="p-3.5 rounded-xl bg-card border border-border">
-                <div className="text-[10px] font-mono uppercase text-emerald-400">Easy</div>
-                <div className="text-lg font-bold text-emerald-300 font-mono mt-0.5">{summary.byDifficulty?.Easy || 0}</div>
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">Easy</div>
+                <div className="text-lg font-bold text-white font-mono mt-0.5">{summary.byDifficulty?.Easy || 0}</div>
               </div>
               <div className="p-3.5 rounded-xl bg-card border border-border">
-                <div className="text-[10px] font-mono uppercase text-amber-400">Medium</div>
-                <div className="text-lg font-bold text-amber-300 font-mono mt-0.5">{summary.byDifficulty?.Medium || 0}</div>
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">Medium</div>
+                <div className="text-lg font-bold text-white font-mono mt-0.5">{summary.byDifficulty?.Medium || 0}</div>
               </div>
               <div className="p-3.5 rounded-xl bg-card border border-border">
-                <div className="text-[10px] font-mono uppercase text-rose-400">Hard</div>
-                <div className="text-lg font-bold text-rose-300 font-mono mt-0.5">{summary.byDifficulty?.Hard || 0}</div>
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">Hard</div>
+                <div className="text-lg font-bold text-white font-mono mt-0.5">{summary.byDifficulty?.Hard || 0}</div>
               </div>
             </div>
 
@@ -524,8 +524,8 @@ export function InterviewView() {
                             >
                               {isCopied ? (
                                 <>
-                                  <Check className="w-3 h-3 text-emerald-400" />
-                                  <span className="text-emerald-300">Copied</span>
+                                  <Check className="w-3 h-3 text-white" />
+                                  <span className="text-white">Copied</span>
                                 </>
                               ) : (
                                 <>
@@ -539,7 +539,7 @@ export function InterviewView() {
                               <button
                                 type="button"
                                 onClick={() => setSelectedFile(rawFile)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30 cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono bg-white/10 text-white hover:bg-white/15 border border-white/20 cursor-pointer"
                               >
                                 <Eye className="w-3 h-3" />
                                 <span>View Source Code</span>
@@ -568,7 +568,7 @@ export function InterviewView() {
                         )}
 
                         {q.codeExcerpt && (
-                          <pre className="p-3 rounded-lg bg-[#0a0c12] border border-border text-[11px] font-mono text-slate-300 overflow-x-auto leading-relaxed select-text">
+                          <pre className="p-3 rounded-lg bg-[#111215] border border-border text-[11px] font-mono text-[#EDEDED] overflow-x-auto leading-relaxed select-text">
                             {q.codeExcerpt}
                           </pre>
                         )}
@@ -579,7 +579,7 @@ export function InterviewView() {
                             type="button"
                             aria-expanded={isExpanded}
                             onClick={() => toggleQuestion(q.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-secondary/70 hover:bg-accent text-indigo-300 border border-border cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-secondary/70 hover:bg-accent text-white/80 border border-border cursor-pointer"
                           >
                             {isExpanded ? (
                               <>
@@ -599,18 +599,18 @@ export function InterviewView() {
                         {isExpanded && (
                           <div className="mt-2 pt-3 border-t border-border/70 space-y-3 text-xs select-text">
                             <div className="p-3 rounded-lg bg-secondary/40 border border-border/80 space-y-1">
-                              <div className="text-[10px] font-mono uppercase font-semibold text-indigo-400">
+                              <div className="text-[10px] font-mono uppercase font-semibold text-white">
                                 Suggested Answer
                               </div>
-                              <p className="text-slate-200 leading-relaxed">{q.suggestedAnswer}</p>
+                              <p className="text-[#EDEDED] leading-relaxed">{q.suggestedAnswer}</p>
                             </div>
 
                             {q.keyPoints?.length > 0 && (
                               <div>
-                                <div className="text-[10px] font-mono uppercase font-semibold text-emerald-400 mb-1.5">
+                                <div className="text-[10px] font-mono uppercase font-semibold text-white/90 mb-1.5">
                                   Key Talking Points
                                 </div>
-                                <ul className="list-disc list-inside space-y-1 text-slate-300">
+                                <ul className="list-disc list-inside space-y-1 text-white/70">
                                   {q.keyPoints.map((kp, i) => (
                                     <li key={i} className="leading-relaxed">
                                       {kp}
@@ -621,11 +621,11 @@ export function InterviewView() {
                             )}
 
                             {q.followUp && (
-                              <div className="p-3 rounded-lg bg-indigo-500/5 border border-indigo-500/20 space-y-1">
-                                <div className="text-[10px] font-mono uppercase font-semibold text-purple-300">
+                              <div className="p-3 rounded-lg bg-white/5 border border-white/10 space-y-1">
+                                <div className="text-[10px] font-mono uppercase font-semibold text-white/80">
                                   Follow-Up Probe
                                 </div>
-                                <p className="text-slate-300 leading-relaxed">{q.followUp}</p>
+                                <p className="text-white/70 leading-relaxed">{q.followUp}</p>
                               </div>
                             )}
                           </div>

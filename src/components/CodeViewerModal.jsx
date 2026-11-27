@@ -110,7 +110,7 @@ export function CodeViewerModal() {
         </div>
 
         {/* Code Content Area with Line Numbers */}
-        <div className="flex-1 overflow-auto bg-[#0E120F] p-4 font-mono text-xs leading-relaxed">
+        <div className="flex-1 overflow-auto bg-[#111215] p-4 font-mono text-xs leading-relaxed">
           <div className="table w-full border-collapse">
             {lines.map((line, index) => {
               const lineNum = index + 1;

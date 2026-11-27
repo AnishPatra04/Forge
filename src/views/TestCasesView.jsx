@@ -34,32 +34,32 @@ const REVIEW_STATUS_META = {
   },
   approved: {
     label: 'Approved',
-    badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+    badgeClass: 'bg-white/10 text-white border-white/20',
   },
   needs_changes: {
     label: 'Needs Changes',
-    badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+    badgeClass: 'bg-white/5 text-white/70 border-white/15',
   },
 };
 
 const TIER_BADGE_CLASSES = {
-  High: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  Medium: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+  High: 'bg-white/15 text-white font-semibold border-white/30',
+  Medium: 'bg-white/10 text-white/90 border-white/20',
   Standard: 'bg-secondary text-muted-foreground border-border',
 };
 
 const CATEGORY_META = {
   normal: {
     label: 'Normal',
-    badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25',
+    badgeClass: 'bg-white/10 text-white border-white/20',
   },
   edge: {
     label: 'Edge',
-    badgeClass: 'bg-amber-500/10 text-amber-300 border-amber-500/25',
+    badgeClass: 'bg-white/10 text-white/90 border-white/20',
   },
   failure: {
     label: 'Failure',
-    badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/25',
+    badgeClass: 'bg-white/15 text-white font-semibold border-white/25',
   },
 };
 
@@ -408,7 +408,7 @@ export function TestCasesView() {
             </span>
           )}
           <span className="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[10px] font-semibold uppercase tracking-wider text-primary">
-            Offline Drafts • Review-Gated
+            Offline Drafts â€¢ Review-Gated
           </span>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
@@ -422,9 +422,9 @@ export function TestCasesView() {
           <span
             role="status"
             aria-live="polite"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white text-xs font-medium"
           >
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0" />
             Test cases regenerated successfully!
           </span>
         )}
@@ -584,7 +584,7 @@ export function TestCasesView() {
         {/* Zero-target state */}
         {plan && targets.length === 0 && (
           <div className="max-w-3xl mx-auto my-8 p-8 rounded-2xl bg-card border border-border text-center">
-            <Info className="w-10 h-10 text-amber-400 mx-auto mb-3 opacity-85" />
+            <Info className="w-10 h-10 text-white/70 mx-auto mb-3 opacity-85" />
             <h3 className="text-base font-bold text-foreground">No Testable Targets Found</h3>
             <p className="text-xs text-muted-foreground max-w-lg mx-auto mt-2 leading-relaxed">
               No supported functions, methods, classes, components, or hooks were extracted from the
@@ -612,7 +612,7 @@ export function TestCasesView() {
                 </div>
                 <div className="text-[11px] text-muted-foreground mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5">
                   <span>{summary?.coveredFiles ?? groupedByFile.length} file(s)</span>
-                  <span>•</span>
+                  <span>â€¢</span>
                   <span>{summary?.coveredModules ?? 0} module(s)</span>
                   {summary?.skippedTestFiles > 0 && (
                     <span className="text-muted-foreground/80">
@@ -631,27 +631,27 @@ export function TestCasesView() {
                   {summary?.totalScenarios ?? 0}
                 </div>
                 <div className="flex items-center gap-2 mt-1.5 text-[11px] flex-wrap">
-                  <span className="text-emerald-400 font-medium">
+                  <span className="text-white font-medium">
                     {summary?.byCategory?.normal ?? 0} Normal
                   </span>
-                  <span className="text-amber-300 font-medium">
+                  <span className="text-white/80 font-medium">
                     {summary?.byCategory?.edge ?? 0} Edge
                   </span>
-                  <span className="text-rose-400 font-medium">
+                  <span className="text-white/60 font-medium">
                     {summary?.byCategory?.failure ?? 0} Failure
                   </span>
                 </div>
               </div>
 
               {/* Manual Verification Warning Card */}
-              <div className="p-4 rounded-xl bg-card border border-amber-500/25">
+              <div className="p-4 rounded-xl bg-card border border-white/15">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-white">
                     Manual Verification
                   </span>
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <AlertTriangle className="w-3.5 h-3.5 text-white/80 shrink-0" />
                 </div>
-                <div className="text-2xl font-bold text-amber-300 mt-1">
+                <div className="text-2xl font-bold text-white mt-1">
                   {summary?.unverifiedAssertionsCount ?? 0}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1.5">
@@ -667,15 +667,15 @@ export function TestCasesView() {
                 </div>
                 <div className="w-full h-1.5 rounded-full bg-secondary mt-2 overflow-hidden">
                   <div
-                    className="h-full bg-emerald-500 transition-all duration-300"
+                    className="h-full bg-white transition-all duration-300"
                     style={{ width: `${reviewStats.progressPct}%` }}
                   />
                 </div>
                 <div className="flex items-center gap-2.5 mt-2.5 text-[11px] flex-wrap">
-                  <span className="text-emerald-400 font-medium">
+                  <span className="text-white font-medium">
                     {reviewStats.approved} Approved
                   </span>
-                  <span className="text-rose-400 font-medium">
+                  <span className="text-white/70 font-medium">
                     {reviewStats.needsChanges} Needs Changes
                   </span>
                   <span className="text-muted-foreground">{reviewStats.pending} Pending</span>
@@ -685,13 +685,13 @@ export function TestCasesView() {
 
             {/* Advisory Notice Banner */}
             {(summary?.unverifiedAssertionsCount ?? 0) > 0 && (
-              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-3">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-200/90 leading-relaxed">
-                  <span className="font-semibold text-amber-300">Human Review Required:</span>{' '}
+              <div className="p-3.5 rounded-xl bg-white/5 border border-white/15 flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-white/80 shrink-0 mt-0.5" />
+                <p className="text-xs text-white/80 leading-relaxed">
+                  <span className="font-semibold text-white">Human Review Required:</span>{' '}
                   Drafts are synthesized statically without executing code or resolving external
                   side effects. Scenarios marked{' '}
-                  <span className="font-mono text-amber-300">Manual Verification Required</span>{' '}
+                  <span className="font-mono text-white font-semibold">Manual Verification Required</span>{' '}
                   contain inferred outcomes or incomplete mock setup and must be verified before
                   approval.
                 </p>
@@ -947,8 +947,8 @@ export function TestCasesView() {
                                     {reviewMeta.label}
                                   </span>
                                   {unverifiedCount > 0 && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border bg-amber-500/10 text-amber-300 border-amber-500/30 text-[10px] font-medium">
-                                      <AlertTriangle className="w-3 h-3" />
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border bg-white/10 text-white border-white/20 text-[10px] font-medium">
+                                      <AlertTriangle className="w-3 h-3 text-white/80" />
                                       {unverifiedCount} manual check
                                       {unverifiedCount === 1 ? '' : 's'}
                                     </span>
@@ -957,7 +957,7 @@ export function TestCasesView() {
 
                                 {target.importanceReasons?.length > 0 && (
                                   <div className="text-[11px] text-muted-foreground">
-                                    Selected because: {target.importanceReasons.join(' • ')}
+                                    Selected because: {target.importanceReasons.join(' â€¢ ')}
                                   </div>
                                 )}
                               </div>
@@ -983,8 +983,8 @@ export function TestCasesView() {
                                   onClick={() => handleApproveTarget(target)}
                                   className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
                                     review.status === 'approved'
-                                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                                      : 'bg-secondary/70 hover:bg-emerald-500/15 text-foreground hover:text-emerald-300 border-border hover:border-emerald-500/30'
+                                      ? 'bg-white/20 text-white border-white/40'
+                                      : 'bg-secondary/70 hover:bg-white/15 text-foreground hover:text-white border-border hover:border-white/30'
                                   }`}
                                 >
                                   <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1077,8 +1077,8 @@ export function TestCasesView() {
                                     {target.behaviour.summary}
                                   </p>
                                   {target.behaviour.dependenciesToMock?.length > 0 && (
-                                    <div className="text-[11px] text-amber-300/90 flex items-center gap-1.5 flex-wrap pt-1">
-                                      <span className="font-semibold">Dependencies to mock:</span>
+                                    <div className="text-[11px] text-white/80 flex items-center gap-1.5 flex-wrap pt-1">
+                                      <span className="font-semibold text-white">Dependencies to mock:</span>
                                       {target.behaviour.dependenciesToMock.map((dep, depIndex) => {
                                         const depInfo = normalizeDependencyItem(dep);
                                         if (!depInfo.name) return null;
@@ -1086,7 +1086,7 @@ export function TestCasesView() {
                                           <span
                                             key={`${target.id}-dep-${depInfo.kind || 'dep'}-${depInfo.name}-${depIndex}`}
                                             title={depInfo.kind || undefined}
-                                            className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 font-mono"
+                                            className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20 font-mono text-white"
                                           >
                                             {depInfo.name}
                                           </span>
@@ -1115,7 +1115,7 @@ export function TestCasesView() {
                                         key={scenario.id}
                                         className={`p-3 rounded-lg border ${
                                           needsManualVerification
-                                            ? 'bg-amber-500/[0.04] border-amber-500/25'
+                                            ? 'bg-white/[0.04] border-white/15'
                                             : 'bg-background/60 border-border/70'
                                         }`}
                                       >
@@ -1133,8 +1133,8 @@ export function TestCasesView() {
                                           <span
                                             className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
                                               needsManualVerification
-                                                ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-                                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                                                ? 'bg-white/10 text-white border-white/20'
+                                                : 'bg-white/5 text-white/70 border-white/10'
                                             }`}
                                           >
                                             {needsManualVerification
@@ -1180,8 +1180,8 @@ export function TestCasesView() {
                                         )}
 
                                         {needsManualVerification && scenario.verificationNote && (
-                                          <div className="mt-2 p-2 rounded bg-amber-500/10 border border-amber-500/25 flex items-start gap-2 text-[11px] text-amber-200/90">
-                                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                                          <div className="mt-2 p-2 rounded bg-white/5 border border-white/15 flex items-start gap-2 text-[11px] text-white/90">
+                                            <AlertTriangle className="w-3.5 h-3.5 text-white/80 shrink-0 mt-0.5" />
                                             <span>{scenario.verificationNote}</span>
                                           </div>
                                         )}
@@ -1308,7 +1308,7 @@ export function TestCasesView() {
                                           >
                                             {copiedKey === draftEditKey ? (
                                               <>
-                                                <Check className="w-3 h-3 text-emerald-400" />
+                                                <Check className="w-3 h-3 text-white" />
                                                 Copied
                                               </>
                                             ) : (
@@ -1338,7 +1338,7 @@ export function TestCasesView() {
                                       </div>
 
                                       {isDraftModified && (
-                                        <div className="text-[11px] text-sky-300/90">
+                                        <div className="text-[11px] text-white/80">
                                           Draft edited in this session. Review and click{' '}
                                           <span className="font-semibold">Approve</span> when ready.
                                         </div>
@@ -1356,10 +1356,10 @@ export function TestCasesView() {
                                             )
                                           }
                                           spellCheck={false}
-                                          className="w-full p-3 rounded-lg bg-[#0b101b] border border-primary/40 font-mono text-xs text-foreground leading-relaxed focus:outline-none"
+                                          className="w-full p-3 rounded-lg bg-[#111215] border border-white/20 font-mono text-xs text-foreground leading-relaxed focus:outline-none"
                                         />
                                       ) : (
-                                        <pre className="p-3.5 rounded-lg bg-[#0b101b] border border-border font-mono text-xs text-slate-200 overflow-x-auto leading-relaxed whitespace-pre">
+                                        <pre className="p-3.5 rounded-lg bg-[#111215] border border-border font-mono text-xs text-slate-200 overflow-x-auto leading-relaxed whitespace-pre">
                                           <code>{currentDraftCode}</code>
                                         </pre>
                                       )}

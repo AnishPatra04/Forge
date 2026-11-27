@@ -35,75 +35,75 @@ const SEVERITIES = ['Critical', 'High', 'Medium', 'Low', 'Informational'];
 
 const SEVERITY_STYLES = {
   Critical: {
-    badge: 'bg-[#EF7777]/16 text-[#F59B9B] border-[#EF7777]/40',
-    stripe: 'border-l-[#EF7777]',
-    bar: 'bg-[#EF7777]',
-    count: 'text-[#EF7777]',
+    badge: 'bg-white/15 text-white font-semibold border-white/30',
+    stripe: 'border-l-white',
+    bar: 'bg-white',
+    count: 'text-white font-semibold',
   },
   High: {
-    badge: 'bg-[#E89B63]/16 text-[#F2B588] border-[#E89B63]/40',
-    stripe: 'border-l-[#E89B63]',
-    bar: 'bg-[#E89B63]',
-    count: 'text-[#E89B63]',
+    badge: 'bg-white/10 text-white/90 font-medium border-white/20',
+    stripe: 'border-l-white/70',
+    bar: 'bg-white/70',
+    count: 'text-white/90',
   },
   Medium: {
-    badge: 'bg-[#E8B66D]/16 text-[#E8B66D] border-[#E8B66D]/40',
-    stripe: 'border-l-[#E8B66D]',
-    bar: 'bg-[#E8B66D]',
-    count: 'text-[#E8B66D]',
+    badge: 'bg-white/5 text-white/70 border-white/15',
+    stripe: 'border-l-white/40',
+    bar: 'bg-white/40',
+    count: 'text-white/70',
   },
   Low: {
-    badge: 'bg-[#8CB8E8]/15 text-[#A6CBF2] border-[#8CB8E8]/35',
-    stripe: 'border-l-[#8CB8E8]',
-    bar: 'bg-[#8CB8E8]',
-    count: 'text-[#8CB8E8]',
+    badge: 'bg-white/5 text-white/50 border-white/10',
+    stripe: 'border-l-white/20',
+    bar: 'bg-white/20',
+    count: 'text-white/50',
   },
   Informational: {
-    badge: 'bg-secondary text-muted-foreground border-border',
-    stripe: 'border-l-white/25',
-    bar: 'bg-[#646E64]',
+    badge: 'bg-white/5 text-white/40 border-white/10',
+    stripe: 'border-l-white/10',
+    bar: 'bg-white/10',
     count: 'text-muted-foreground',
   },
 };
 
 const CONFIDENCE_STYLES = {
-  High: 'bg-[#8CCB9A]/14 text-[#8CCB9A] border-[#8CCB9A]/35',
-  Medium: 'bg-[#E8B66D]/14 text-[#E8B66D] border-[#E8B66D]/35',
-  Low: 'bg-[#EF7777]/14 text-[#F59B9B] border-[#EF7777]/35',
+  High: 'bg-white/10 text-white border-white/20',
+  Medium: 'bg-white/5 text-white/70 border-white/15',
+  Low: 'bg-white/5 text-white/50 border-white/10',
 };
 
 const EVIDENCE_LABELS = {
   verified_dependency: {
     label: 'Verified Dependency',
-    cls: 'bg-[#C5F467]/12 text-[#C5F467] border-[#C5F467]/30',
+    cls: 'bg-white/10 text-white border-white/20',
   },
   evidence_backed_impact: {
     label: 'Evidence Backed',
-    cls: 'bg-[#8CCB9A]/12 text-[#8CCB9A] border-[#8CCB9A]/30',
+    cls: 'bg-white/10 text-white/90 border-white/20',
   },
   ai_inferred_risk: {
     label: 'AI Inferred',
-    cls: 'bg-[#E8B66D]/12 text-[#E8B66D] border-[#E8B66D]/30',
+    cls: 'bg-white/5 text-white/70 border-white/15',
   },
   insufficient_evidence: {
     label: 'Insufficient Evidence',
-    cls: 'bg-[#EF7777]/12 text-[#F59B9B] border-[#EF7777]/30',
+    cls: 'bg-white/5 text-white/50 border-white/10',
   },
 };
 
 const OVERALL_ASSESSMENT_STYLES = {
-  'High Impact': 'bg-[#EF7777]/16 text-[#F59B9B] border-[#EF7777]/40',
-  'Moderate Impact': 'bg-[#E8B66D]/16 text-[#E8B66D] border-[#E8B66D]/40',
-  'Low Impact': 'bg-[#8CB8E8]/15 text-[#A6CBF2] border-[#8CB8E8]/35',
-  'Minimal / Isolated Impact': 'bg-[#8CCB9A]/14 text-[#8CCB9A] border-[#8CCB9A]/35',
-  'Insufficient Evidence': 'bg-secondary text-muted-foreground border-border',
+  'High Impact': 'bg-white/15 text-white font-semibold border-white/30',
+  'Moderate Impact': 'bg-white/10 text-white/90 border-white/20',
+  'Low Impact': 'bg-white/5 text-white/70 border-white/15',
+  'Minimal / Isolated Impact': 'bg-white/5 text-white/60 border-white/10',
+  'Insufficient Evidence': 'bg-white/5 text-muted-foreground border-border',
 };
 
 const DEPENDENCY_TYPE_BADGES = {
-  target: { label: 'Target', cls: 'bg-[#C5F467]/15 text-[#C5F467] border-[#C5F467]/35' },
-  direct_dependent: { label: 'Direct Dependent', cls: 'bg-[#EF7777]/14 text-[#F59B9B] border-[#EF7777]/35' },
-  indirect_dependent: { label: 'Indirect Dependent', cls: 'bg-[#E8B66D]/14 text-[#E8B66D] border-[#E8B66D]/35' },
-  shared_dependency: { label: 'Shared Dependency', cls: 'bg-[#8CB8E8]/14 text-[#A6CBF2] border-[#8CB8E8]/35' },
+  target: { label: 'Target', cls: 'bg-white/20 text-white font-semibold border-white/40' },
+  direct_dependent: { label: 'Direct Dependent', cls: 'bg-white/10 text-white border-white/20' },
+  indirect_dependent: { label: 'Indirect Dependent', cls: 'bg-white/5 text-white/80 border-white/15' },
+  shared_dependency: { label: 'Shared Dependency', cls: 'bg-white/5 text-white/70 border-white/15' },
   related_context: { label: 'Related Context', cls: 'bg-secondary text-muted-foreground border-border' },
 };
 
@@ -154,7 +154,7 @@ function ImpactFindingCard({ finding, onOpenFinding }) {
               <button
                 type="button"
                 onClick={() => onOpenFinding(finding)}
-                className="inline-flex items-center gap-1.5 text-[11px] font-mono text-[#C5F467] hover:underline"
+                className="inline-flex items-center gap-1.5 text-[11px] font-mono text-white hover:underline"
                 title={`Open ${finding.filePath} in Code Viewer`}
               >
                 <FileCode className="w-3 h-3 shrink-0" />
@@ -196,7 +196,7 @@ function ImpactFindingCard({ finding, onOpenFinding }) {
 
             {finding.potentialConsequence && (
               <div>
-                <span className="text-[10px] font-mono uppercase tracking-[0.06em] text-[#E8B66D]">
+                <span className="text-[10px] font-mono uppercase tracking-[0.06em] text-white/70">
                   Potential Consequence
                 </span>
                 <p className="text-[12.5px] text-foreground/90 leading-relaxed mt-0.5">
@@ -214,12 +214,12 @@ function ImpactFindingCard({ finding, onOpenFinding }) {
                   <button
                     type="button"
                     onClick={() => onOpenFinding(finding)}
-                    className="text-[10px] font-mono text-[#C5F467] hover:underline"
+                    className="text-[10px] font-mono text-white hover:underline"
                   >
                     Inspect in Viewer
                   </button>
                 </div>
-                <pre className="p-2.5 rounded-lg bg-[#0B0D0C] border border-border font-mono text-[11px] text-foreground/90 overflow-x-auto leading-relaxed">
+                <pre className="p-2.5 rounded-lg bg-[#111215] border border-border font-mono text-[11px] text-foreground/90 overflow-x-auto leading-relaxed">
                   {finding.evidenceSnippet}
                 </pre>
               </div>
@@ -227,7 +227,7 @@ function ImpactFindingCard({ finding, onOpenFinding }) {
 
             {finding.recommendedModification && (
               <div className="p-2.5 rounded-lg bg-secondary/70 border border-border">
-                <span className="text-[10px] font-mono uppercase tracking-[0.06em] text-[#8CCB9A]">
+                <span className="text-[10px] font-mono uppercase tracking-[0.06em] text-white/80">
                   Recommended Adjustment
                 </span>
                 <p className="text-[12px] text-foreground/90 mt-0.5 leading-relaxed">
@@ -305,38 +305,67 @@ export function ChangeImpactView() {
     return fileSymbols[0]?.id || '';
   }, [fileSymbols, selectedSymbolId]);
 
-  const exampleChanges = useMemo(() => generateExampleChanges(files), [files]);
+  const exampleChanges = useMemo(() => {
+    return generateExampleChanges(files, 4);
+  }, [files]);
 
-  const activeTargetSelection = useMemo(() => {
-    if (targetScopeMode === 'workspace' || !selectedFile) return null;
-    const sym =
-      targetScopeMode === 'symbol'
-        ? fileSymbols.find((s) => s.id === effectiveSelectedSymbolId) || null
-        : null;
-    return {
-      fileId: selectedFile.id,
-      filePath: getFilePath(selectedFile) || selectedFile.name,
-      symbolName: sym?.symbolName || null,
-      symbolType: sym?.symbolType || null,
-      startLine: sym?.startLine || null,
-      endLine: sym?.endLine || null,
+  const handleAnalyze = (overrideDescription = null) => {
+    const rawDesc = overrideDescription !== null ? overrideDescription : description;
+    const trimmed = (rawDesc || '').trim();
+
+    let targetFile = null;
+    let targetSymbol = null;
+
+    if (targetScopeMode === 'file' && selectedFile) {
+      targetFile = getFilePath(selectedFile) || selectedFile.name;
+    } else if (targetScopeMode === 'symbol' && selectedFile) {
+      targetFile = getFilePath(selectedFile) || selectedFile.name;
+      const foundSym = fileSymbols.find((s) => s.id === effectiveSelectedSymbolId);
+      if (foundSym) {
+        targetSymbol = foundSym.name;
+      }
+    }
+
+    const payload = {
+      description: trimmed,
+      targetFile,
+      targetSymbol,
     };
-  }, [targetScopeMode, selectedFile, fileSymbols, effectiveSelectedSymbolId]);
 
-  const handleAnalyze = async (overrideDesc = null) => {
-    const text = overrideDesc !== null ? overrideDesc : description;
-    if (overrideDesc !== null) setDescription(overrideDesc);
-    setSeverityFilter('All');
-    setActiveResultTab('overview');
-    await runChangeImpactAnalysis({
-      description: text,
-      targetSelection: activeTargetSelection,
+    runChangeImpactAnalysis(payload);
+  };
+
+  const handleNarrowAmbiguous = (candidate) => {
+    if (!candidate) return;
+    const targetFile = candidate.filePath;
+    const targetSymbol = candidate.symbolName || null;
+
+    const matchedFile = files.find(
+      (f) => getFilePath(f) === targetFile || f.name === targetFile
+    );
+    if (matchedFile) {
+      setSelectedFileId(matchedFile.id);
+      if (targetSymbol) {
+        setTargetScopeMode('symbol');
+      } else {
+        setTargetScopeMode('file');
+      }
+    }
+
+    runChangeImpactAnalysis({
+      description,
+      targetFile,
+      targetSymbol,
     });
   };
 
   const handleOpenFinding = (finding) => {
     if (!finding) return;
-    openFileAtLine(finding.fileId || finding.filePath, {
+    const matched = files.find(
+      (f) => getFilePath(f) === finding.filePath || f.name === finding.filePath
+    );
+    const fileId = matched?.id || finding.filePath;
+    openFileAtLine(fileId, {
       startLine: finding.startLine || 1,
       endLine: finding.endLine || finding.startLine || 1,
     });
@@ -344,27 +373,9 @@ export function ChangeImpactView() {
 
   const handleOpenComponent = (comp) => {
     if (!comp) return;
-    const line =
-      comp.importEvidence?.[0]?.line ||
-      comp.symbolReferences?.[0]?.line ||
-      1;
     openFileAtLine(comp.fileId || comp.filePath, {
-      startLine: line,
-      endLine: line,
-    });
-  };
-
-  const handleNarrowAmbiguous = async (candidate) => {
-    setTargetScopeMode(candidate.symbolName ? 'symbol' : 'file');
-    setSelectedFileId(candidate.fileId);
-    setSeverityFilter('All');
-    await runChangeImpactAnalysis({
-      description,
-      targetSelection: {
-        fileId: candidate.fileId,
-        filePath: candidate.filePath,
-        symbolName: candidate.symbolName || null,
-      },
+      startLine: 1,
+      endLine: 1,
     });
   };
 
@@ -382,15 +393,15 @@ export function ChangeImpactView() {
       {/* Compact Header Strip */}
       <div className="px-6 py-3.5 border-b border-border bg-card/60 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-[#C5F467]/12 border border-[#C5F467]/30 flex items-center justify-center shrink-0">
-            <GitCompareArrows className="w-4.5 h-4.5 text-[#C5F467]" />
+          <div className="w-9 h-9 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+            <GitCompareArrows className="w-4.5 h-4.5 text-white" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-[15px] font-bold tracking-tight text-foreground">
                 Change Impact Simulator
               </h2>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[10px] font-mono font-semibold bg-[#8CCB9A]/12 text-[#8CCB9A] border border-[#8CCB9A]/30">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[10px] font-mono font-semibold bg-white/10 text-white/90 border border-white/20">
                 <Lock className="w-2.5 h-2.5" />
                 Read-Only Simulation
               </span>
@@ -411,10 +422,10 @@ export function ChangeImpactView() {
             <span
               className={`w-2 h-2 rounded-full ${
                 assistantBackendStatus.reachable && assistantBackendStatus.geminiConfigured
-                  ? 'bg-[#8CCB9A]'
+                  ? 'bg-white'
                   : assistantBackendStatus.reachable
-                  ? 'bg-[#E8B66D]'
-                  : 'bg-[#EF7777]'
+                  ? 'bg-white/60'
+                  : 'bg-destructive'
               }`}
             />
             {assistantBackendStatus.reachable && assistantBackendStatus.geminiConfigured
@@ -447,7 +458,7 @@ export function ChangeImpactView() {
         {files.length === 0 ? (
           <div className="forge-panel p-8 max-w-2xl mx-auto text-center space-y-4">
             <div className="w-12 h-12 rounded-xl bg-secondary border border-border flex items-center justify-center mx-auto">
-              <FolderGit2 className="w-6 h-6 text-[#C5F467]" />
+              <FolderGit2 className="w-6 h-6 text-white/80" />
             </div>
             <div>
               <h3 className="text-[16px] font-bold text-foreground">
@@ -460,7 +471,7 @@ export function ChangeImpactView() {
             <button
               type="button"
               onClick={() => setActiveTab('workspace')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#C5F467] text-[#0B0D0C] text-[12.5px] font-semibold hover:bg-[#D5FF7B] transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#EDEDED] text-[#08090A] text-[12.5px] font-semibold hover:bg-white transition-colors cursor-pointer"
             >
               Open Workspace
             </button>
@@ -484,7 +495,7 @@ export function ChangeImpactView() {
 
                 {/* Target Scope Selector */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="inline-flex rounded-lg bg-[#0B0D0C] border border-border p-0.5 text-[11px]">
+                  <div className="inline-flex rounded-lg bg-[#111215] border border-border p-0.5 text-[11px]">
                     {[
                       { id: 'workspace', label: 'Entire Workspace' },
                       { id: 'file', label: 'Specific File' },
@@ -496,7 +507,7 @@ export function ChangeImpactView() {
                         onClick={() => setTargetScopeMode(opt.id)}
                         className={`px-2.5 py-1 rounded-[6px] font-medium transition-colors ${
                           targetScopeMode === opt.id
-                            ? 'bg-secondary text-[#C5F467]'
+                            ? 'bg-secondary text-white font-semibold'
                             : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
@@ -508,7 +519,7 @@ export function ChangeImpactView() {
               </div>
 
               {targetScopeMode !== 'workspace' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg bg-[#0B0D0C]/70 border border-border">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg bg-[#111215] border border-border">
                   <div>
                     <label className="block text-[10.5px] font-mono uppercase tracking-[0.06em] text-muted-foreground mb-1">
                       Target File
@@ -516,7 +527,7 @@ export function ChangeImpactView() {
                     <select
                       value={effectiveSelectedFileId}
                       onChange={(e) => setSelectedFileId(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-lg bg-secondary border border-border text-[12px] font-mono text-foreground focus:outline-none focus:border-[#C5F467]/60"
+                      className="w-full px-3 py-1.5 rounded-lg bg-secondary border border-border text-[12px] font-mono text-foreground focus:outline-none focus:border-white/40"
                     >
                       {sortedFiles.map((f) => (
                         <option key={f.id} value={f.id}>
@@ -535,7 +546,7 @@ export function ChangeImpactView() {
                         value={effectiveSelectedSymbolId}
                         onChange={(e) => setSelectedSymbolId(e.target.value)}
                         disabled={fileSymbols.length === 0}
-                        className="w-full px-3 py-1.5 rounded-lg bg-secondary border border-border text-[12px] font-mono text-foreground focus:outline-none focus:border-[#C5F467]/60 disabled:opacity-50"
+                        className="w-full px-3 py-1.5 rounded-lg bg-secondary border border-border text-[12px] font-mono text-foreground focus:outline-none focus:border-white/40 disabled:opacity-50"
                       >
                         {fileSymbols.length === 0 ? (
                           <option value="">No top-level symbols parsed</option>
@@ -564,7 +575,7 @@ export function ChangeImpactView() {
                   }
                 }}
                 placeholder="e.g., What if I change the return signature of verifyToken or replace PostgreSQL with MongoDB?"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0D0C] border border-border text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-[#C5F467]/60 resize-y"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#111215] border border-border text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-white/40 resize-y"
               />
 
               {/* Actions + Example Chips */}
@@ -592,7 +603,7 @@ export function ChangeImpactView() {
                     <button
                       type="button"
                       onClick={cancelImpactAnalysis}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#EF7777]/15 border border-[#EF7777]/40 text-[#F59B9B] text-[12.5px] font-semibold hover:bg-[#EF7777]/25 transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive/15 border border-destructive/40 text-destructive text-[12.5px] font-semibold hover:bg-destructive/25 transition-colors"
                     >
                       <StopCircle className="w-4 h-4" />
                       Cancel
@@ -602,7 +613,7 @@ export function ChangeImpactView() {
                       type="button"
                       onClick={() => handleAnalyze()}
                       disabled={!description.trim() && targetScopeMode === 'workspace'}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#C5F467] text-[#0B0D0C] text-[12.5px] font-semibold hover:bg-[#D5FF7B] disabled:opacity-45 disabled:cursor-not-allowed transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#EDEDED] text-[#08090A] text-[12.5px] font-semibold hover:bg-white disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" />
                       Analyse Change
@@ -627,7 +638,7 @@ export function ChangeImpactView() {
                         onClick={() => selectImpactHistoryItem(item.id)}
                         className={`px-2.5 py-1 rounded-md text-[11px] font-mono border truncate max-w-[230px] transition-colors ${
                           active
-                            ? 'bg-[#C5F467]/14 text-[#C5F467] border-[#C5F467]/35'
+                            ? 'bg-white/10 text-white border-white/20'
                             : 'bg-secondary/70 text-muted-foreground border-border hover:text-foreground'
                         }`}
                         title={`${item.proposedChange} (${item.timestamp})`}
@@ -642,9 +653,9 @@ export function ChangeImpactView() {
 
             {/* Active Progress Banner */}
             {isAnalyzingImpact && impactProgress && (
-              <div className="forge-panel p-4 border-[#C5F467]/35 flex items-center justify-between gap-3">
+              <div className="forge-panel p-4 border-white/20 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <Loader2 className="w-4.5 h-4.5 text-[#C5F467] animate-spin shrink-0" />
+                  <Loader2 className="w-4.5 h-4.5 text-white animate-spin shrink-0" />
                   <div className="min-w-0">
                     <div className="text-[12.5px] font-semibold text-foreground">
                       Running Change Impact Simulation
@@ -654,7 +665,7 @@ export function ChangeImpactView() {
                     </div>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded bg-secondary border border-border text-[10px] font-mono text-[#C5F467] uppercase">
+                <span className="px-2 py-0.5 rounded bg-secondary border border-border text-[10px] font-mono text-white/80 uppercase">
                   {impactProgress.phase}
                 </span>
               </div>
@@ -662,11 +673,11 @@ export function ChangeImpactView() {
 
             {/* Honest Error Banner (preserves partial deterministic results if present) */}
             {impactError && (
-              <div className="p-4 rounded-xl bg-[#EF7777]/10 border border-[#EF7777]/35 flex items-start justify-between gap-3">
+              <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/35 flex items-start justify-between gap-3">
                 <div className="flex items-start gap-2.5 min-w-0">
-                  <AlertCircle className="w-4.5 h-4.5 text-[#EF7777] shrink-0 mt-0.5" />
+                  <AlertCircle className="w-4.5 h-4.5 text-destructive shrink-0 mt-0.5" />
                   <div className="min-w-0">
-                    <div className="text-[12.5px] font-semibold text-[#F59B9B]">
+                    <div className="text-[12.5px] font-semibold text-destructive">
                       {impactError.code === 'MISSING_API_KEY'
                         ? 'Gemini API Key Missing on Backend'
                         : impactError.code === 'BACKEND_UNREACHABLE'
@@ -683,7 +694,7 @@ export function ChangeImpactView() {
                 <button
                   type="button"
                   onClick={dismissImpactError}
-                  className="p-1 rounded hover:bg-[#EF7777]/20 text-[#F59B9B]"
+                  className="p-1 rounded hover:bg-destructive/20 text-destructive"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -692,9 +703,9 @@ export function ChangeImpactView() {
 
             {/* Ambiguity State */}
             {impactAnalysis?.status === 'ambiguous' && (
-              <div className="forge-panel p-5 border-[#E8B66D]/45 bg-[#E8B66D]/8 space-y-3">
+              <div className="forge-panel p-5 border-white/20 bg-white/5 space-y-3">
                 <div className="flex items-start gap-2.5">
-                  <AlertTriangle className="w-5 h-5 text-[#E8B66D] shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-5 h-5 text-white/80 shrink-0 mt-0.5" />
                   <div>
                     <h3 className="text-[14px] font-bold text-foreground">
                       Ambiguous Target Detected
@@ -710,9 +721,9 @@ export function ChangeImpactView() {
                       key={`${cand.fileId}-${idx}`}
                       type="button"
                       onClick={() => handleNarrowAmbiguous(cand)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary border border-border hover:border-[#C5F467]/50 text-[12px] font-mono text-foreground transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary border border-border hover:border-white/40 text-[12px] font-mono text-foreground transition-colors cursor-pointer"
                     >
-                      <Code2 className="w-3.5 h-3.5 text-[#C5F467]" />
+                      <Code2 className="w-3.5 h-3.5 text-white/70" />
                       {cand.filePath}
                       {cand.symbolName ? ` · ${cand.symbolName}()` : ''}
                     </button>
@@ -773,7 +784,7 @@ export function ChangeImpactView() {
                           </span>
                           {impactAnalysis.model && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[10.5px] font-mono bg-secondary text-muted-foreground border border-border">
-                              <Sparkles className="w-2.5 h-2.5 text-[#C5F467]" />
+                              <Sparkles className="w-2.5 h-2.5 text-white/70" />
                               {impactAnalysis.model}
                             </span>
                           )}
@@ -788,7 +799,7 @@ export function ChangeImpactView() {
                       </p>
 
                       {impactAnalysis.parsedChange?.isVague && (
-                        <div className="p-2.5 rounded-lg bg-[#E8B66D]/10 border border-[#E8B66D]/30 text-[11.5px] text-[#E8B66D]">
+                        <div className="p-2.5 rounded-lg bg-white/5 border border-white/15 text-[11.5px] text-white/80">
                           Note: {impactAnalysis.parsedChange.vaguenessReason}
                         </div>
                       )}
@@ -808,7 +819,7 @@ export function ChangeImpactView() {
                                 endLine: t.endLine || t.startLine || 1,
                               })
                             }
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] bg-[#C5F467]/12 text-[#C5F467] border border-[#C5F467]/30 text-[11px] font-mono hover:bg-[#C5F467]/20 transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] bg-white/10 text-white border border-white/20 text-[11px] font-mono hover:bg-white/15 transition-colors cursor-pointer"
                             title={t.matchReason}
                           >
                             <FileCode className="w-3 h-3" />
@@ -822,7 +833,7 @@ export function ChangeImpactView() {
                     {/* Impact Metrics Tile */}
                     <div className="lg:col-span-4 forge-panel p-5 flex flex-col justify-between gap-3">
                       <div className="grid grid-cols-2 gap-2.5">
-                        <div className="p-2.5 rounded-lg bg-[#0B0D0C] border border-border">
+                        <div className="p-2.5 rounded-lg bg-[#111215] border border-border">
                           <div className="text-[10px] font-mono uppercase text-muted-foreground">
                             Impacted Files
                           </div>
@@ -830,17 +841,17 @@ export function ChangeImpactView() {
                             {impactAnalysis.impactedComponents.length}
                           </div>
                         </div>
-                        <div className="p-2.5 rounded-lg bg-[#0B0D0C] border border-border">
+                        <div className="p-2.5 rounded-lg bg-[#111215] border border-border">
                           <div className="text-[10px] font-mono uppercase text-muted-foreground">
                             Direct / Indirect
                           </div>
-                          <div className="text-[20px] font-bold text-[#C5F467] mt-0.5 tabular-nums">
+                          <div className="text-[20px] font-bold text-white mt-0.5 tabular-nums">
                             {impactAnalysis.directDependents.length}
                             <span className="text-muted-foreground text-[14px] font-normal"> / </span>
                             {impactAnalysis.indirectDependents.length}
                           </div>
                         </div>
-                        <div className="p-2.5 rounded-lg bg-[#0B0D0C] border border-border">
+                        <div className="p-2.5 rounded-lg bg-[#111215] border border-border">
                           <div className="text-[10px] font-mono uppercase text-muted-foreground">
                             Risk Findings
                           </div>
@@ -848,11 +859,11 @@ export function ChangeImpactView() {
                             {totalFindings}
                           </div>
                         </div>
-                        <div className="p-2.5 rounded-lg bg-[#0B0D0C] border border-border">
+                        <div className="p-2.5 rounded-lg bg-[#111215] border border-border">
                           <div className="text-[10px] font-mono uppercase text-muted-foreground">
                             Affected Tests
                           </div>
-                          <div className="text-[20px] font-bold text-[#8CCB9A] mt-0.5 tabular-nums">
+                          <div className="text-[20px] font-bold text-white/90 mt-0.5 tabular-nums">
                             {impactAnalysis.testRecommendations?.existingTests?.length || 0}
                           </div>
                         </div>
@@ -861,7 +872,7 @@ export function ChangeImpactView() {
                       {/* Severity Distribution Bar */}
                       {totalFindings > 0 && (
                         <div className="space-y-1.5">
-                          <div className="flex h-2 rounded-full overflow-hidden bg-[#0B0D0C] border border-border">
+                          <div className="flex h-2 rounded-full overflow-hidden bg-[#111215] border border-border">
                             {SEVERITIES.map((sev) => {
                               const count = sevBreakdown[sev] || 0;
                               if (count === 0) return null;
@@ -907,9 +918,9 @@ export function ChangeImpactView() {
                             key={tab.id}
                             type="button"
                             onClick={() => setActiveResultTab(tab.id)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors cursor-pointer ${
                               active
-                                ? 'bg-[#C5F467]/14 text-[#C5F467] border-[#C5F467]/35'
+                                ? 'bg-white/10 text-white border-white/20'
                                 : 'bg-secondary/60 text-muted-foreground border-border hover:text-foreground'
                             }`}
                           >
@@ -930,9 +941,9 @@ export function ChangeImpactView() {
                               key={sev}
                               type="button"
                               onClick={() => setSeverityFilter(sev)}
-                              className={`px-2 py-1 rounded text-[10.5px] font-mono border transition-colors ${
+                              className={`px-2 py-1 rounded text-[10.5px] font-mono border transition-colors cursor-pointer ${
                                 severityFilter === sev
-                                  ? 'bg-secondary text-[#C5F467] border-[#C5F467]/40'
+                                  ? 'bg-secondary text-white border-white/30 font-medium'
                                   : 'bg-transparent text-muted-foreground border-border hover:text-foreground'
                               }`}
                             >
@@ -967,7 +978,7 @@ export function ChangeImpactView() {
                             return (
                               <div
                                 key={comp.fileId}
-                                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#0B0D0C]/80 border border-border hover:border-white/20 transition-colors"
+                                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#111215] border border-border hover:border-white/20 transition-colors"
                               >
                                 <div className="flex flex-wrap items-center gap-2 min-w-0">
                                   <span className={`px-2 py-0.5 rounded-[5px] text-[10px] font-mono border shrink-0 ${badge.cls}`}>
@@ -976,12 +987,12 @@ export function ChangeImpactView() {
                                   <button
                                     type="button"
                                     onClick={() => handleOpenComponent(comp)}
-                                    className="text-[12px] font-mono text-foreground hover:text-[#C5F467] hover:underline truncate"
+                                    className="text-[12px] font-mono text-foreground hover:text-white hover:underline truncate cursor-pointer"
                                   >
                                     {comp.filePath}
                                   </button>
                                   {comp.isTestFile && (
-                                    <span className="px-1.5 py-0.5 rounded text-[9.5px] font-mono bg-[#8CCB9A]/12 text-[#8CCB9A] border border-[#8CCB9A]/25">
+                                    <span className="px-1.5 py-0.5 rounded text-[9.5px] font-mono bg-white/10 text-white/80 border border-white/15">
                                       Test
                                     </span>
                                   )}
@@ -1023,7 +1034,7 @@ export function ChangeImpactView() {
                             Deterministic dependency analysis is shown above. Start the backend server with a configured Gemini key to evaluate line-level behavioral risks.
                           </div>
                         ) : (
-                          <div className="forge-panel p-5 flex items-center gap-2.5 text-[12.5px] text-[#8CCB9A]">
+                          <div className="forge-panel p-5 flex items-center gap-2.5 text-[12.5px] text-white/90">
                             <CheckCircle2 className="w-4.5 h-4.5 shrink-0" />
                             No concrete breaking risks were substantiated for the current filter.
                           </div>
@@ -1032,8 +1043,8 @@ export function ChangeImpactView() {
 
                       {/* Uncertainties & Caveats */}
                       {impactAnalysis.uncertainties?.length > 0 && (
-                        <div className="forge-panel p-4 space-y-2 border-[#E8B66D]/30">
-                          <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[#E8B66D]">
+                        <div className="forge-panel p-4 space-y-2 border-white/15">
+                          <div className="flex items-center gap-2 text-[12.5px] font-semibold text-white/90">
                             <AlertTriangle className="w-4 h-4 shrink-0" />
                             Analysis Uncertainties & Scope Caveats
                           </div>
@@ -1066,7 +1077,7 @@ export function ChangeImpactView() {
                         <div className="forge-panel p-4 space-y-3">
                           <div className="flex items-center justify-between">
                             <h3 className="text-[13px] font-bold text-foreground flex items-center gap-2">
-                              <FlaskConical className="w-4 h-4 text-[#8CCB9A]" />
+                              <FlaskConical className="w-4 h-4 text-white/80" />
                               Existing Workspace Tests Affected
                             </h3>
                             <span className="text-[11px] font-mono text-muted-foreground">
@@ -1079,7 +1090,7 @@ export function ChangeImpactView() {
                               {impactAnalysis.testRecommendations.existingTests.map((t, idx) => (
                                 <div
                                   key={`${t.fileId}-${idx}`}
-                                  className="p-2.5 rounded-lg bg-[#0B0D0C] border border-border flex items-start justify-between gap-2"
+                                  className="p-2.5 rounded-lg bg-[#111215] border border-border flex items-start justify-between gap-2"
                                 >
                                   <div className="min-w-0">
                                     <button
@@ -1087,7 +1098,7 @@ export function ChangeImpactView() {
                                       onClick={() =>
                                         openFileAtLine(t.fileId || t.filePath, { startLine: 1, endLine: 1 })
                                       }
-                                      className="text-[12px] font-mono text-[#8CCB9A] hover:underline truncate block"
+                                      className="text-[12px] font-mono text-white hover:underline truncate block cursor-pointer"
                                     >
                                       {t.filePath}
                                     </button>
@@ -1110,7 +1121,7 @@ export function ChangeImpactView() {
 
                         <div className="forge-panel p-4 space-y-3">
                           <h3 className="text-[13px] font-bold text-foreground flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-[#C5F467]" />
+                            <Sparkles className="w-4 h-4 text-white/80" />
                             Recommended New Tests (Suggested Coverage)
                           </h3>
                           {(impactAnalysis.testRecommendations?.recommendedNewTests || []).length > 0 ? (
@@ -1118,7 +1129,7 @@ export function ChangeImpactView() {
                               {impactAnalysis.testRecommendations.recommendedNewTests.map((rec, idx) => (
                                 <div
                                   key={idx}
-                                  className="p-2.5 rounded-lg bg-[#0B0D0C] border border-border space-y-1"
+                                  className="p-2.5 rounded-lg bg-[#111215] border border-border space-y-1"
                                 >
                                   <div className="flex items-center justify-between gap-2">
                                     <span className="text-[12px] font-semibold text-foreground">
@@ -1133,7 +1144,7 @@ export function ChangeImpactView() {
                                     </span>
                                   </div>
                                   {rec.targetFile && (
-                                    <div className="text-[11px] font-mono text-[#C5F467]">
+                                    <div className="text-[11px] font-mono text-white/80">
                                       Target: {rec.targetFile}
                                     </div>
                                   )}
@@ -1154,7 +1165,7 @@ export function ChangeImpactView() {
                       {/* Suggested Safe Change Sequence */}
                       <div className="forge-panel p-4 space-y-3 h-fit">
                         <h3 className="text-[13px] font-bold text-foreground flex items-center gap-2">
-                          <ListOrdered className="w-4 h-4 text-[#C5F467]" />
+                          <ListOrdered className="w-4 h-4 text-white/80" />
                           Suggested Safe Modification Order
                         </h3>
                         {(impactAnalysis.changeSequence || []).length > 0 ? (
@@ -1162,9 +1173,9 @@ export function ChangeImpactView() {
                             {impactAnalysis.changeSequence.map((stepText, idx) => (
                               <div
                                 key={idx}
-                                className="p-3 rounded-lg bg-[#0B0D0C] border border-border flex items-start gap-3"
+                                className="p-3 rounded-lg bg-[#111215] border border-border flex items-start gap-3"
                               >
-                                <span className="w-6 h-6 rounded-full bg-[#C5F467]/15 border border-[#C5F467]/35 text-[#C5F467] text-[11px] font-mono font-bold flex items-center justify-center shrink-0">
+                                <span className="w-6 h-6 rounded-full bg-white/10 border border-white/20 text-white text-[11px] font-mono font-bold flex items-center justify-center shrink-0">
                                   {idx + 1}
                                 </span>
                                 <p className="text-[12.5px] text-foreground/95 leading-relaxed pt-0.5">

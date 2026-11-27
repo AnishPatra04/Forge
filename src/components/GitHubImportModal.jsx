@@ -226,7 +226,7 @@ function GitHubImportModalContent() {
                 <button
                   type="submit"
                   disabled={!repoUrl.trim()}
-                  className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-primary hover:bg-[#D2FA81] disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground transition-colors cursor-pointer"
+                  className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-primary hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground transition-colors cursor-pointer"
                 >
                   Import Repository
                 </button>

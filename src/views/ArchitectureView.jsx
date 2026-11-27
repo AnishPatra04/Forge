@@ -247,7 +247,7 @@ function computeSystemLayout(model) {
     externalBox = {
       id: 'layer:external',
       label: 'External Packages',
-      accent: '#38bdf8',
+      accent: '#D4D4D8',
       colIdx: extColIdx,
       x: extColX,
       y: CANVAS_PAD,
@@ -546,15 +546,15 @@ function buildStandaloneSvg(model, viewMode, systemLayout, systemRoutes, breakdo
       maxW = Math.max(maxW, b.x + b.width + CANVAS_PAD);
       maxH = Math.max(maxH, b.y + b.height + CANVAS_PAD);
       parts.push(
-        `<rect x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height}" rx="12" fill="#111420" stroke="#283046" />`
+        `<rect x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height}" rx="12" fill="#0C0D10" stroke="rgba(255,255,255,0.08)" />`
       );
       parts.push(
-        `<text x="${b.x + 14}" y="${b.y + 26}" fill="#e2e8f0" font-family="monospace" font-size="12" font-weight="bold">${escapeXml(b.label)}</text>`
+        `<text x="${b.x + 14}" y="${b.y + 26}" fill="#EDEDED" font-family="monospace" font-size="12" font-weight="bold">${escapeXml(b.label)}</text>`
       );
     }
 
     for (const route of systemRoutes.moduleRoutes || []) {
-      const stroke = route.isCycleEdge ? '#f59e0b' : '#64748b';
+      const stroke = route.isCycleEdge ? '#EF4444' : '#52525B';
       const dash = route.isCycleEdge ? ' stroke-dasharray="5 4"' : '';
       const marker = route.isCycleEdge ? 'url(#export-arrow-cycle)' : 'url(#export-arrow)';
       parts.push(
@@ -564,7 +564,7 @@ function buildStandaloneSvg(model, viewMode, systemLayout, systemRoutes, breakdo
 
     for (const route of systemRoutes.externalRoutes || []) {
       parts.push(
-        `<path d="${route.path}" fill="none" stroke="#38bdf8" stroke-opacity="0.72" stroke-width="1.3" stroke-dasharray="3 3" marker-end="url(#export-arrow-external)" />`
+        `<path d="${route.path}" fill="none" stroke="#71717A" stroke-opacity="0.72" stroke-width="1.3" stroke-dasharray="3 3" marker-end="url(#export-arrow-external)" />`
       );
     }
 
@@ -584,23 +584,23 @@ function buildStandaloneSvg(model, viewMode, systemLayout, systemRoutes, breakdo
       const p = systemLayout.modulePos.get(mod.id);
       if (!p) continue;
       parts.push(
-        `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="10" fill="#141724" stroke="${mod.accent}" stroke-width="1.5" />`
+        `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="10" fill="#141519" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" />`
       );
       parts.push(
-        `<text x="${p.x + 12}" y="${p.y + 28}" fill="#f8fafc" font-family="monospace" font-size="12" font-weight="bold">${escapeXml(mod.label)}</text>`
+        `<text x="${p.x + 12}" y="${p.y + 28}" fill="#EDEDED" font-family="monospace" font-size="12" font-weight="bold">${escapeXml(mod.label)}</text>`
       );
       parts.push(
-        `<text x="${p.x + 12}" y="${p.y + 50}" fill="#94a3b8" font-family="monospace" font-size="10">${mod.fileCount} files · in:${mod.inDegree} out:${mod.outDegree}</text>`
+        `<text x="${p.x + 12}" y="${p.y + 50}" fill="#8A8B93" font-family="monospace" font-size="10">${mod.fileCount} files · in:${mod.inDegree} out:${mod.outDegree}</text>`
       );
     }
     for (const ext of systemLayout.visibleExternals) {
       const p = systemLayout.externalPos.get(ext.id);
       if (!p) continue;
       parts.push(
-        `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="8" fill="#101726" stroke="#38bdf8" stroke-opacity="0.6" />`
+        `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="8" fill="#111215" stroke="rgba(255,255,255,0.12)" stroke-opacity="0.6" />`
       );
       parts.push(
-        `<text x="${p.x + 12}" y="${p.y + 25}" fill="#bae6fd" font-family="monospace" font-size="11">${escapeXml(ext.name)}</text>`
+        `<text x="${p.x + 12}" y="${p.y + 25}" fill="#EDEDED" font-family="monospace" font-size="11">${escapeXml(ext.name)}</text>`
       );
     }
   } else {
@@ -608,10 +608,10 @@ function buildStandaloneSvg(model, viewMode, systemLayout, systemRoutes, breakdo
       maxW = Math.max(maxW, box.x + box.width + CANVAS_PAD);
       maxH = Math.max(maxH, box.y + box.height + CANVAS_PAD);
       parts.push(
-        `<rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" rx="12" fill="#111420" stroke="${box.mod.accent}" stroke-opacity="0.6" />`
+        `<rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" rx="12" fill="#0C0D10" stroke="rgba(255,255,255,0.12)" stroke-opacity="0.6" />`
       );
       parts.push(
-        `<text x="${box.x + 12}" y="${box.y + 26}" fill="#f8fafc" font-family="monospace" font-size="12" font-weight="bold">${escapeXml(box.mod.label)}</text>`
+        `<text x="${box.x + 12}" y="${box.y + 26}" fill="#EDEDED" font-family="monospace" font-size="12" font-weight="bold">${escapeXml(box.mod.label)}</text>`
       );
     }
     for (const edge of model.fileEdges || []) {
@@ -622,7 +622,7 @@ function buildStandaloneSvg(model, viewMode, systemLayout, systemRoutes, breakdo
       const y1 = s.y + s.height / 2;
       const x2 = Math.abs(s.x - t.x) < 10 ? t.x + t.width : t.x;
       const y2 = t.y + t.height / 2;
-      const stroke = edge.isCycleEdge ? '#f59e0b' : '#6366f1';
+      const stroke = edge.isCycleEdge ? '#EF4444' : '#52525B';
       const dash = edge.isCycleEdge ? ' stroke-dasharray="5 4"' : '';
       parts.push(
         `<path d="${buildCurvedPath(x1, y1, x2, y2)}" fill="none" stroke="${stroke}" stroke-width="1.5"${dash} marker-end="url(#export-arrow)" />`
@@ -633,21 +633,21 @@ function buildStandaloneSvg(model, viewMode, systemLayout, systemRoutes, breakdo
       if (!p) continue;
       const label = f.hasDuplicateBasename ? f.filePath : f.fileName;
       parts.push(
-        `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="8" fill="#141724" stroke="#334155" />`
+        `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="8" fill="#141519" stroke="rgba(255,255,255,0.1)" />`
       );
       parts.push(
-        `<text x="${p.x + 10}" y="${p.y + 24}" fill="#e2e8f0" font-family="monospace" font-size="11">${escapeXml(label)}</text>`
+        `<text x="${p.x + 10}" y="${p.y + 24}" fill="#EDEDED" font-family="monospace" font-size="11">${escapeXml(label)}</text>`
       );
     }
   }
 
   const vbHeight = maxH - minY;
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${maxW}" height="${vbHeight}" viewBox="0 ${minY} ${maxW} ${vbHeight}" style="background:#0c0d12">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${maxW}" height="${vbHeight}" viewBox="0 ${minY} ${maxW} ${vbHeight}" style="background:#08090A">`,
     '<defs>',
-    '<marker id="export-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#94a3b8" /></marker>',
-    '<marker id="export-arrow-cycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#f59e0b" /></marker>',
-    '<marker id="export-arrow-external" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#38bdf8" /></marker>',
+    '<marker id="export-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#71717A" /></marker>',
+    '<marker id="export-arrow-cycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#EF4444" /></marker>',
+    '<marker id="export-arrow-external" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#71717A" /></marker>',
     '</defs>',
     ...parts,
     '</svg>',
@@ -880,22 +880,22 @@ export function ArchitectureView() {
           {files.length > 0 && (
             <div className="hidden lg:flex items-center gap-1.5 text-[11px] font-mono">
               <span className="px-2 py-0.5 rounded bg-secondary border border-border text-foreground">
-                <span className="font-semibold text-indigo-400">{model.summary.totalModules}</span>{' '}
+                <span className="font-semibold text-white">{model.summary.totalModules}</span>{' '}
                 <span className="text-muted-foreground">modules</span>
               </span>
               <span className="px-2 py-0.5 rounded bg-secondary border border-border text-foreground">
-                <span className="font-semibold text-emerald-400">{model.summary.totalModuleEdges}</span>{' '}
+                <span className="font-semibold text-white">{model.summary.totalModuleEdges}</span>{' '}
                 <span className="text-muted-foreground">links</span>
               </span>
               {model.summary.totalExternalDeps > 0 && (
                 <span className="px-2 py-0.5 rounded bg-secondary border border-border text-foreground">
-                  <span className="font-semibold text-sky-400">{model.summary.totalExternalDeps}</span>{' '}
+                  <span className="font-semibold text-white">{model.summary.totalExternalDeps}</span>{' '}
                   <span className="text-muted-foreground">packages</span>
                 </span>
               )}
               {totalCycles > 0 && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/25">
-                  <AlertTriangle className="w-3 h-3" />
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 text-white border border-white/20">
+                  <AlertTriangle className="w-3 h-3 text-white/80" />
                   <span>{totalCycles} cycle{totalCycles === 1 ? '' : 's'}</span>
                 </span>
               )}
@@ -1090,14 +1090,14 @@ export function ArchitectureView() {
                     onClick={handleCopyMermaid}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-secondary hover:bg-accent text-foreground border border-border cursor-pointer"
                   >
-                    {copiedMermaid ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedMermaid ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedMermaid ? 'Copied' : 'Copy Mermaid'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleDownloadMermaid}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-[#EDEDED] hover:bg-white text-[#08090A] font-semibold cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Download .mmd</span>
@@ -1105,7 +1105,7 @@ export function ArchitectureView() {
                 </div>
               </div>
 
-              <pre className="p-5 rounded-xl bg-[#0a0c12] border border-border text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed select-text">
+              <pre className="p-5 rounded-xl bg-[#111215] border border-border text-xs font-mono text-[#EDEDED] overflow-x-auto leading-relaxed select-text">
                 {activeMermaidCode}
               </pre>
             </div>
@@ -1122,25 +1122,25 @@ export function ArchitectureView() {
           >
             <defs>
               <marker id="arch-arrow-default" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#64748b" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#52525B" />
               </marker>
               <marker id="arch-arrow-outgoing" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#818cf8" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#FFFFFF" />
               </marker>
               <marker id="arch-arrow-incoming" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#34d399" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#A1A1AA" />
               </marker>
               <marker id="arch-arrow-cycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#f59e0b" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#EF4444" />
               </marker>
               <marker id="arch-arrow-external" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#38bdf8" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#71717A" />
               </marker>
               <marker id="arch-arrow-dimmed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#334155" opacity="0.3" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#27272A" opacity="0.4" />
               </marker>
               <pattern id="arch-grid" width="32" height="32" patternUnits="userSpaceOnUse">
-                <circle cx="2" cy="2" r="1" fill="#334155" opacity="0.25" />
+                <circle cx="2" cy="2" r="1" fill="#27272A" opacity="0.4" />
               </pattern>
             </defs>
 
@@ -1158,16 +1158,16 @@ export function ArchitectureView() {
                         width={box.width}
                         height={box.height}
                         rx={14}
-                        fill="#0f121d"
-                        fillOpacity="0.92"
-                        stroke="#1e293b"
+                        fill="#0A0B0E"
+                        fillOpacity="0.95"
+                        stroke="rgba(255, 255, 255, 0.08)"
                         strokeWidth={1.2}
                       />
-                      <circle cx={box.x + 18} cy={box.y + 22} r={4} fill={box.accent} />
+                      <circle cx={box.x + 18} cy={box.y + 22} r={4} fill="#71717A" />
                       <text
                         x={box.x + 28}
                         y={box.y + 26}
-                        fill="#cbd5e1"
+                        fill="#EDEDED"
                         fontSize="11"
                         fontWeight="600"
                         fontFamily="monospace"
@@ -1186,17 +1186,17 @@ export function ArchitectureView() {
                         width={systemLayout.externalBox.width}
                         height={systemLayout.externalBox.height}
                         rx={14}
-                        fill="#0d1522"
-                        fillOpacity="0.9"
-                        stroke="#1e3a5f"
+                        fill="#0A0B0E"
+                        fillOpacity="0.92"
+                        stroke="rgba(255, 255, 255, 0.12)"
                         strokeWidth={1.2}
                         strokeDasharray="4 3"
                       />
-                      <circle cx={systemLayout.externalBox.x + 18} cy={systemLayout.externalBox.y + 22} r={4} fill="#38bdf8" />
+                      <circle cx={systemLayout.externalBox.x + 18} cy={systemLayout.externalBox.y + 22} r={4} fill="#71717A" />
                       <text
                         x={systemLayout.externalBox.x + 28}
                         y={systemLayout.externalBox.y + 26}
-                        fill="#bae6fd"
+                        fill="#EDEDED"
                         fontSize="11"
                         fontWeight="600"
                         fontFamily="monospace"
@@ -1214,19 +1214,19 @@ export function ArchitectureView() {
                     const isActive = isOut || isIn;
                     const isDimmed = hasSel && !isActive;
 
-                    let stroke = route.isCycleEdge ? '#f59e0b' : '#475569';
+                    let stroke = route.isCycleEdge ? '#EF4444' : '#52525B';
                     let marker = route.isCycleEdge ? 'url(#arch-arrow-cycle)' : 'url(#arch-arrow-default)';
                     let strokeWidth = route.isCycleEdge ? 2 : 1.6;
                     if (isOut) {
-                      stroke = '#818cf8';
+                      stroke = '#FFFFFF';
                       marker = 'url(#arch-arrow-outgoing)';
                       strokeWidth = 2.4;
                     } else if (isIn) {
-                      stroke = '#34d399';
+                      stroke = '#A1A1AA';
                       marker = 'url(#arch-arrow-incoming)';
                       strokeWidth = 2.4;
                     } else if (isDimmed) {
-                      stroke = '#334155';
+                      stroke = '#27272A';
                       marker = 'url(#arch-arrow-dimmed)';
                       strokeWidth = 1;
                     }
@@ -1257,7 +1257,7 @@ export function ArchitectureView() {
                         key={route.edgeId}
                         d={route.path}
                         fill="none"
-                        stroke="#38bdf8"
+                        stroke="#71717A"
                         strokeWidth={highlighted ? 2 : 1.35}
                         strokeDasharray="3 3"
                         strokeOpacity={highlighted ? 0.92 : 0.58}
@@ -1300,36 +1300,36 @@ export function ArchitectureView() {
                       >
                         <foreignObject width={pos.width} height={pos.height} className="overflow-visible">
                           <div
-                            className={`w-full h-full rounded-xl p-2.5 flex flex-col justify-between border bg-[#141724] transition-all ${
+                            className={`w-full h-full rounded-xl p-2.5 flex flex-col justify-between border bg-[#111215] transition-all ${
                               isSelected
-                                ? 'border-primary ring-2 ring-primary/40 shadow-lg'
+                                ? 'border-white ring-2 ring-white/40 shadow-lg'
                                 : isOutgoing
-                                ? 'border-indigo-400 ring-1 ring-indigo-400/40'
+                                ? 'border-white/60 ring-1 ring-white/20'
                                 : isIncoming
-                                ? 'border-emerald-400 ring-1 ring-emerald-400/40'
+                                ? 'border-white/40 ring-1 ring-white/20'
                                 : isFilterMatch
-                                ? 'border-amber-400 ring-2 ring-amber-400/40'
-                                : 'border-slate-700/80 hover:border-slate-500'
+                                ? 'border-white ring-2 ring-white/30'
+                                : 'border-white/10 hover:border-white/25'
                             } ${isDimmed ? 'opacity-35' : 'opacity-100'}`}
                           >
                             <div className="flex items-center justify-between gap-1.5 min-w-0">
                               <span className="flex items-center gap-1.5 font-mono text-[11px] font-semibold text-foreground truncate" title={mod.label}>
-                                <Box className="w-3.5 h-3.5 shrink-0" style={{ color: mod.accent }} />
+                                <Box className="w-3.5 h-3.5 shrink-0 text-white/70" />
                                 <span className="truncate">{mod.label}</span>
                               </span>
                               <div className="flex items-center gap-1 shrink-0">
                                 {mod.isEntryPoint && (
-                                  <span className="text-[9px] font-mono px-1 rounded bg-purple-500/15 text-purple-300 border border-purple-500/25">
+                                  <span className="text-[9px] font-mono px-1 rounded bg-white/10 text-white border border-white/20">
                                     Entry
                                   </span>
                                 )}
                                 {mod.isHub && (
-                                  <span className="text-[9px] font-mono px-1 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
+                                  <span className="text-[9px] font-mono px-1 rounded bg-white/10 text-white border border-white/20">
                                     Hub
                                   </span>
                                 )}
                                 {mod.inCycle && (
-                                  <span className="text-[9px] font-mono px-1 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                                  <span className="text-[9px] font-mono px-1 rounded bg-white/10 text-white border border-white/20">
                                     Cycle
                                   </span>
                                 )}
@@ -1339,8 +1339,8 @@ export function ArchitectureView() {
                             <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground pt-1 border-t border-border/50">
                               <span>{mod.fileCount} file{mod.fileCount === 1 ? '' : 's'} · {mod.totalLoc} LOC</span>
                               <span className="flex items-center gap-1.5">
-                                <span className="text-indigo-400">→{mod.outDegree}</span>
-                                <span className="text-emerald-400">←{mod.inDegree}</span>
+                                <span className="text-white/80">→{mod.outDegree}</span>
+                                <span className="text-white/60">←{mod.inDegree}</span>
                               </span>
                             </div>
                           </div>
@@ -1372,17 +1372,17 @@ export function ArchitectureView() {
                           <div
                             className={`w-full h-full rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2 border ${
                               isSelected
-                                ? 'bg-[#0f1f36] border-sky-400 ring-1 ring-sky-400/50'
+                                ? 'bg-[#1E2026] border-white ring-1 ring-white/40'
                                 : isFilterMatch
-                                ? 'bg-[#141724] border-amber-400 ring-1 ring-amber-400/40'
-                                : 'bg-[#101726] border-sky-500/30 hover:border-sky-400/70'
+                                ? 'bg-[#18191E] border-white ring-1 ring-white/30'
+                                : 'bg-[#111215] border-white/10 hover:border-white/20'
                             }`}
                           >
-                            <span className="flex items-center gap-1.5 font-mono text-[11px] text-sky-200 truncate">
-                              <Package className="w-3 h-3 text-sky-400 shrink-0" />
+                            <span className="flex items-center gap-1.5 font-mono text-[11px] text-[#EDEDED] truncate">
+                              <Package className="w-3 h-3 text-white/60 shrink-0" />
                               <span className="truncate">{ext.name}</span>
                             </span>
-                            <span className="text-[9px] font-mono text-sky-300/80 shrink-0">
+                            <span className="text-[9px] font-mono text-white/50 shrink-0">
                               {ext.usedByFileIds.length}f
                             </span>
                           </div>
@@ -1404,10 +1404,10 @@ export function ArchitectureView() {
                           width={width}
                           height={height}
                           rx={12}
-                          fill="#0f121d"
-                          fillOpacity="0.94"
-                          stroke={modSelected ? '#818cf8' : mod.accent}
-                          strokeOpacity={modSelected ? 0.9 : 0.45}
+                          fill="#090A0D"
+                          fillOpacity="0.95"
+                          stroke={modSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.15)'}
+                          strokeOpacity={modSelected ? 0.9 : 0.6}
                           strokeWidth={modSelected ? 2 : 1.2}
                         />
                         <g
@@ -1421,7 +1421,7 @@ export function ArchitectureView() {
                           <text
                             x={x + 14}
                             y={y + 24}
-                            fill="#f1f5f9"
+                            fill="#EDEDED"
                             fontSize="11.5"
                             fontWeight="600"
                             fontFamily="monospace"
@@ -1431,7 +1431,7 @@ export function ArchitectureView() {
                           <text
                             x={x + 14}
                             y={y + 38}
-                            fill="#94a3b8"
+                            fill="#8A8B93"
                             fontSize="9.5"
                             fontFamily="monospace"
                           >
@@ -1461,16 +1461,16 @@ export function ArchitectureView() {
                       t.y + t.height / 2
                     );
 
-                    let stroke = edge.isCycleEdge ? '#f59e0b' : '#475569';
+                    let stroke = edge.isCycleEdge ? '#EF4444' : '#52525B';
                     let marker = edge.isCycleEdge ? 'url(#arch-arrow-cycle)' : 'url(#arch-arrow-default)';
                     if (isOut) {
-                      stroke = '#818cf8';
+                      stroke = '#FFFFFF';
                       marker = 'url(#arch-arrow-outgoing)';
                     } else if (isIn) {
-                      stroke = '#34d399';
+                      stroke = '#A1A1AA';
                       marker = 'url(#arch-arrow-incoming)';
                     } else if (isDimmed) {
-                      stroke = '#334155';
+                      stroke = '#27272A';
                       marker = 'url(#arch-arrow-dimmed)';
                     }
 
@@ -1520,24 +1520,24 @@ export function ArchitectureView() {
                           <div
                             className={`w-full h-full rounded-lg px-2.5 py-1 flex items-center justify-between gap-2 border ${
                               isSelected
-                                ? 'bg-indigo-950/60 border-indigo-400 ring-1 ring-indigo-400/50'
+                                ? 'bg-[#1E2026] border-white ring-1 ring-white/40'
                                 : isOut
-                                ? 'bg-card border-indigo-400/70'
+                                ? 'bg-[#18191E] border-white/60'
                                 : isIn
-                                ? 'bg-card border-emerald-400/70'
+                                ? 'bg-[#18191E] border-white/40'
                                 : isFilterMatch
-                                ? 'bg-card border-amber-400 ring-1 ring-amber-400/40'
-                                : 'bg-[#171b29] border-slate-800 hover:border-slate-600'
+                                ? 'bg-card border-white ring-1 ring-white/30'
+                                : 'bg-[#111215] border-white/10 hover:border-white/20'
                             }`}
                           >
-                            <span className="flex items-center gap-1.5 min-w-0 font-mono text-[11px] text-slate-200 truncate" title={file.filePath}>
-                              <FileCode className="w-3 h-3 text-indigo-400 shrink-0" />
+                            <span className="flex items-center gap-1.5 min-w-0 font-mono text-[11px] text-[#EDEDED] truncate" title={file.filePath}>
+                              <FileCode className="w-3 h-3 text-white/60 shrink-0" />
                               <span className="truncate">{displayName}</span>
                             </span>
                             <div className="flex items-center gap-1 shrink-0 font-mono text-[9px]">
-                              {file.isHub && <span className="px-1 rounded bg-indigo-500/15 text-indigo-300">Hub</span>}
-                              {file.inCycle && <span className="px-1 rounded bg-amber-500/15 text-amber-300">Cycle</span>}
-                              <span className="text-slate-400">{extBadge}</span>
+                              {file.isHub && <span className="px-1 rounded bg-white/10 text-white">Hub</span>}
+                              {file.inCycle && <span className="px-1 rounded bg-white/10 text-white">Cycle</span>}
+                              <span className="text-white/50">{extBadge}</span>
                             </div>
                           </div>
                         </foreignObject>
@@ -1557,10 +1557,10 @@ export function ArchitectureView() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   {selectedDetails.type === 'module' && (
-                    <Box className="w-4 h-4 shrink-0" style={{ color: selectedDetails.mod.accent }} />
+                    <Box className="w-4 h-4 shrink-0 text-white/70" />
                   )}
-                  {selectedDetails.type === 'file' && <FileCode className="w-4 h-4 text-indigo-400 shrink-0" />}
-                  {selectedDetails.type === 'external' && <Package className="w-4 h-4 text-sky-400 shrink-0" />}
+                  {selectedDetails.type === 'file' && <FileCode className="w-4 h-4 text-white/70 shrink-0" />}
+                  {selectedDetails.type === 'external' && <Package className="w-4 h-4 text-white/70 shrink-0" />}
                   <span className="font-mono text-xs font-bold text-foreground truncate">
                     {selectedDetails.type === 'module'
                       ? selectedDetails.mod.label
@@ -1655,7 +1655,7 @@ export function ArchitectureView() {
 
                   {/* Incoming module dependents */}
                   <div>
-                    <div className="text-[11px] font-semibold text-emerald-400 uppercase mb-1.5 flex items-center gap-1.5">
+                    <div className="text-[11px] font-semibold text-white uppercase mb-1.5 flex items-center gap-1.5">
                       <ArrowLeft className="w-3.5 h-3.5" />
                       <span>Used By ({selectedDetails.incoming.length})</span>
                     </div>
@@ -1666,10 +1666,10 @@ export function ArchitectureView() {
                             key={imp.id}
                             type="button"
                             onClick={() => setSelectedTarget({ type: 'module', id: imp.id })}
-                            className="w-full flex items-center justify-between p-2 rounded-lg bg-secondary/50 hover:bg-emerald-500/10 border border-border/80 text-left cursor-pointer"
+                            className="w-full flex items-center justify-between p-2 rounded-lg bg-secondary/50 hover:bg-white/10 border border-border/80 text-left cursor-pointer"
                           >
                             <span className="truncate">{imp.label}</span>
-                            <span className="text-[10px] text-emerald-300 shrink-0">{imp.weight} ref{imp.weight === 1 ? '' : 's'}</span>
+                            <span className="text-[10px] text-white/60 shrink-0">{imp.weight} ref{imp.weight === 1 ? '' : 's'}</span>
                           </button>
                         ))}
                       </div>
@@ -1689,7 +1689,7 @@ export function ArchitectureView() {
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {selectedDetails.file.symbols.exports.slice(0, 12).map((sym, i) => (
-                          <span key={i} className="px-1.5 py-0.5 rounded bg-secondary border border-border text-[10px] text-indigo-300">
+                          <span key={i} className="px-1.5 py-0.5 rounded bg-secondary border border-border text-[10px] text-white/80">
                             {sym}
                           </span>
                         ))}
@@ -1698,7 +1698,7 @@ export function ArchitectureView() {
                   )}
 
                   <div>
-                    <div className="text-[11px] font-semibold text-indigo-400 uppercase mb-1.5 flex items-center gap-1.5">
+                    <div className="text-[11px] font-semibold text-white uppercase mb-1.5 flex items-center gap-1.5">
                       <ArrowRight className="w-3.5 h-3.5" />
                       <span>Imports ({selectedDetails.outgoing.length})</span>
                     </div>
@@ -1709,10 +1709,10 @@ export function ArchitectureView() {
                             key={dep.id}
                             type="button"
                             onClick={() => setSelectedTarget({ type: 'file', id: dep.id })}
-                            className="w-full flex items-center justify-between p-2 rounded-lg bg-secondary/50 hover:bg-indigo-500/10 border border-border/80 text-left cursor-pointer"
+                            className="w-full flex items-center justify-between p-2 rounded-lg bg-secondary/50 hover:bg-white/10 border border-border/80 text-left cursor-pointer"
                           >
                             <span className="truncate">{dep.label}</span>
-                            <ArrowRight className="w-3 h-3 text-indigo-400 shrink-0" />
+                            <ArrowRight className="w-3 h-3 text-white/60 shrink-0" />
                           </button>
                         ))}
                       </div>
@@ -1722,7 +1722,7 @@ export function ArchitectureView() {
                   </div>
 
                   <div>
-                    <div className="text-[11px] font-semibold text-emerald-400 uppercase mb-1.5 flex items-center gap-1.5">
+                    <div className="text-[11px] font-semibold text-white uppercase mb-1.5 flex items-center gap-1.5">
                       <ArrowLeft className="w-3.5 h-3.5" />
                       <span>Imported By ({selectedDetails.incoming.length})</span>
                     </div>
@@ -1733,10 +1733,10 @@ export function ArchitectureView() {
                             key={imp.id}
                             type="button"
                             onClick={() => setSelectedTarget({ type: 'file', id: imp.id })}
-                            className="w-full flex items-center justify-between p-2 rounded-lg bg-secondary/50 hover:bg-emerald-500/10 border border-border/80 text-left cursor-pointer"
+                            className="w-full flex items-center justify-between p-2 rounded-lg bg-secondary/50 hover:bg-white/10 border border-border/80 text-left cursor-pointer"
                           >
                             <span className="truncate">{imp.label}</span>
-                            <ArrowLeft className="w-3 h-3 text-emerald-400 shrink-0" />
+                            <ArrowLeft className="w-3 h-3 text-white/60 shrink-0" />
                           </button>
                         ))}
                       </div>
@@ -1839,7 +1839,7 @@ export function ArchitectureView() {
 
                 {entryPoints.length > 0 && (
                   <div>
-                    <div className="text-[10px] text-purple-400 uppercase font-semibold mb-1">Entry Points</div>
+                    <div className="text-[10px] text-white/50 uppercase font-semibold mb-1">Entry Points</div>
                     <div className="space-y-1">
                       {entryPoints.slice(0, 3).map((ep) => (
                         <button
@@ -1852,10 +1852,10 @@ export function ArchitectureView() {
                                 : { type: 'file', id: ep.fileId }
                             )
                           }
-                          className="w-full flex items-center justify-between px-2 py-1 rounded bg-secondary/60 hover:bg-purple-500/10 text-left cursor-pointer"
+                          className="w-full flex items-center justify-between px-2 py-1 rounded bg-secondary/60 hover:bg-white/10 text-left cursor-pointer"
                         >
                           <span className="truncate text-[11px] text-foreground">{ep.filePath}</span>
-                          <span className="text-[10px] text-purple-300 shrink-0">→{ep.outDegree}</span>
+                          <span className="text-[10px] text-white/60 shrink-0">→{ep.outDegree}</span>
                         </button>
                       ))}
                     </div>
@@ -1864,7 +1864,7 @@ export function ArchitectureView() {
 
                 {externalHighlights.length > 0 && (
                   <div>
-                    <div className="text-[10px] text-sky-400 uppercase font-semibold mb-1">
+                    <div className="text-[10px] text-white/50 uppercase font-semibold mb-1">
                       External Dependencies ({externalHighlights.length})
                     </div>
                     <div className="space-y-1">
@@ -1873,13 +1873,13 @@ export function ArchitectureView() {
                           key={ext.id}
                           type="button"
                           onClick={() => setSelectedTarget({ type: 'external', id: ext.id })}
-                          className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded bg-secondary/60 hover:bg-sky-500/10 text-left cursor-pointer"
+                          className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded bg-secondary/60 hover:bg-white/10 text-left cursor-pointer"
                         >
                           <span className="flex items-center gap-1.5 min-w-0 truncate text-[11px] text-foreground">
-                            <Package className="w-3 h-3 text-sky-400 shrink-0" />
+                            <Package className="w-3 h-3 text-white/60 shrink-0" />
                             <span className="truncate">{ext.name}</span>
                           </span>
-                          <span className="text-[10px] text-sky-300 shrink-0">
+                          <span className="text-[10px] text-white/50 shrink-0">
                             {ext.importCount} ref{ext.importCount === 1 ? '' : 's'}
                           </span>
                         </button>
@@ -1890,7 +1890,7 @@ export function ArchitectureView() {
 
                 {isolatedModules.length > 0 && (
                   <div>
-                    <div className="text-[10px] text-slate-400 uppercase font-semibold mb-1">
+                    <div className="text-[10px] text-white/50 uppercase font-semibold mb-1">
                       Isolated Modules ({isolatedModules.length})
                     </div>
                     <div className="space-y-1">
@@ -1899,10 +1899,10 @@ export function ArchitectureView() {
                           key={iso.moduleId}
                           type="button"
                           onClick={() => setSelectedTarget({ type: 'module', id: iso.moduleId })}
-                          className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded bg-secondary/60 hover:bg-slate-500/15 text-left cursor-pointer"
+                          className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded bg-secondary/60 hover:bg-white/10 text-left cursor-pointer"
                         >
                           <span className="flex items-center gap-1.5 min-w-0 truncate text-[11px] text-foreground">
-                            <Box className="w-3 h-3 text-slate-400 shrink-0" />
+                            <Box className="w-3 h-3 text-white/60 shrink-0" />
                             <span className="truncate">{iso.label}</span>
                           </span>
                           <span className="text-[10px] text-muted-foreground shrink-0">
@@ -1915,12 +1915,12 @@ export function ArchitectureView() {
                 )}
 
                 {totalCycles > 0 && (
-                  <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-200 text-[10px]">
+                  <div className="p-2 rounded-lg bg-white/5 border border-white/15 text-white text-[10px]">
                     <div className="font-semibold flex items-center gap-1 mb-0.5">
-                      <AlertTriangle className="w-3 h-3 text-amber-400" />
+                      <AlertTriangle className="w-3 h-3 text-white/80" />
                       <span>Circular Dependencies Detected</span>
                     </div>
-                    <p className="text-amber-300/80">
+                    <p className="text-white/70">
                       {model.highlights.cycles.moduleCycles.length} module cycle(s), {model.highlights.cycles.fileCycles.length} file cycle(s)
                     </p>
                   </div>

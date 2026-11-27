@@ -589,7 +589,7 @@ export function ProjectGraphView({
             </p>
             <button
               onClick={loadSampleProject}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-[#D2FA81] transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-white transition-colors cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
               <span>Load Sample Codebase</span>
@@ -623,7 +623,7 @@ export function ProjectGraphView({
                 markerHeight="6"
                 orient="auto-start-reverse"
               >
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#636D63" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#52525B" />
               </marker>
 
               <marker
@@ -635,7 +635,7 @@ export function ProjectGraphView({
                 markerHeight="7"
                 orient="auto-start-reverse"
               >
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#C5F467" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#FFFFFF" />
               </marker>
 
               <marker
@@ -647,7 +647,7 @@ export function ProjectGraphView({
                 markerHeight="7"
                 orient="auto-start-reverse"
               >
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#8CCB9A" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#A1A1AA" />
               </marker>
 
               <marker
@@ -659,11 +659,11 @@ export function ProjectGraphView({
                 markerHeight="5"
                 orient="auto-start-reverse"
               >
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#2E362E" opacity="0.35" />
+                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#27272A" opacity="0.4" />
               </marker>
 
               <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
-                <circle cx="1.5" cy="1.5" r="1" fill="#465246" opacity="0.35" />
+                <circle cx="1.5" cy="1.5" r="1" fill="#27272A" opacity="0.4" />
               </pattern>
             </defs>
 
@@ -712,24 +712,24 @@ export function ProjectGraphView({
                   );
 
                   let markerUrl = 'url(#arrow-default)';
-                  let strokeColor = '#4F594F';
+                  let strokeColor = '#3F3F46';
                   let strokeWidth = 1.5;
 
                   if (isSelectedOutgoing) {
                     markerUrl = 'url(#arrow-outgoing)';
-                    strokeColor = '#C5F467';
+                    strokeColor = '#FFFFFF';
                     strokeWidth = 2.2;
                   } else if (isSelectedIncoming) {
                     markerUrl = 'url(#arrow-incoming)';
-                    strokeColor = '#8CCB9A';
-                    strokeWidth = 2.2;
+                    strokeColor = '#A1A1AA';
+                    strokeWidth = 2.0;
                   } else if (isImpactEdge && !hasSelection) {
                     markerUrl = 'url(#arrow-outgoing)';
-                    strokeColor = '#E8B66D';
-                    strokeWidth = 2.2;
+                    strokeColor = '#D4D4D4';
+                    strokeWidth = 2.0;
                   } else if (isDimmed) {
                     markerUrl = 'url(#arrow-dimmed)';
-                    strokeColor = '#272E28';
+                    strokeColor = '#27272A';
                     strokeWidth = 1;
                   }
 
@@ -794,13 +794,13 @@ export function ProjectGraphView({
 
                   const impactCardClass =
                     impactState?.state === 'target'
-                      ? 'bg-gradient-to-b from-[#263122] to-[#171E18] border-primary ring-2 ring-primary/35 shadow-[inset_0_1px_0_rgba(197,244,103,0.28),0_14px_28px_-10px_rgba(0,0,0,0.9)] z-30'
+                      ? 'bg-[#18191E] border-white ring-2 ring-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_28px_-10px_rgba(0,0,0,0.9)] z-30'
                       : impactState?.state === 'high_risk'
-                        ? 'bg-gradient-to-b from-[#2E1E1E] to-[#1A1414] border-destructive ring-1 ring-destructive/35 z-20'
+                        ? 'bg-[#18191E] border-destructive ring-1 ring-destructive/40 z-20'
                         : impactState?.state === 'medium_risk'
-                          ? 'bg-gradient-to-b from-[#2D261C] to-[#1A1713] border-warning ring-1 ring-warning/30 z-20'
+                          ? 'bg-[#18191E] border-white/40 ring-1 ring-white/20 z-20'
                           : impactState?.state === 'low_risk' || impactState?.state === 'related'
-                            ? 'bg-gradient-to-b from-[#1E2A22] to-[#161D18] border-success/75 z-20'
+                            ? 'bg-[#141519] border-white/20 z-20'
                             : null;
 
                   return (
@@ -818,17 +818,17 @@ export function ProjectGraphView({
                         <div
                           className={`w-full h-full rounded-lg p-2.5 flex flex-col justify-between transition-all duration-200 select-none border ${
                             isSelected
-                              ? 'bg-gradient-to-b from-[#263122] to-[#171E18] border-primary ring-2 ring-primary/35 shadow-[inset_0_1px_0_rgba(197,244,103,0.3),0_18px_36px_-10px_rgba(0,0,0,0.95),0_0_24px_-6px_rgba(197,244,103,0.28)] scale-[1.06] z-30'
+                              ? 'bg-[#1E2026] border-white ring-2 ring-white/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_18px_36px_-10px_rgba(0,0,0,0.95)] scale-[1.06] z-30'
                               : impactCardClass
                               ? impactCardClass
                               : isOutgoingTarget
-                              ? 'bg-gradient-to-b from-[#232D22] to-[#171D18] border-primary/70 ring-1 ring-primary/25 shadow-[inset_0_1px_0_rgba(197,244,103,0.18),0_14px_26px_-12px_rgba(0,0,0,0.9)] z-20'
+                              ? 'bg-[#18191E] border-white/60 ring-1 ring-white/20 shadow-[0_14px_26px_-12px_rgba(0,0,0,0.9)] z-20'
                               : isIncomingSource
-                              ? 'bg-gradient-to-b from-[#1E2A22] to-[#161D18] border-success/75 ring-1 ring-success/25 shadow-[inset_0_1px_0_rgba(140,203,154,0.2),0_14px_26px_-12px_rgba(0,0,0,0.9)] z-20'
+                              ? 'bg-[#18191E] border-white/40 ring-1 ring-white/20 shadow-[0_14px_26px_-12px_rgba(0,0,0,0.9)] z-20'
                               : isSearchMatch
-                              ? 'bg-card border-warning ring-2 ring-warning/35 shadow-lg z-20'
+                              ? 'bg-card border-white ring-2 ring-white/30 shadow-lg z-20'
                               : meta?.isIsolated
-                              ? 'bg-[#131714]/85 border-white/10 border-dashed text-muted-foreground hover:border-white/20'
+                              ? 'bg-[#111215]/85 border-white/10 border-dashed text-muted-foreground hover:border-white/20'
                               : 'forge-card-3d text-foreground'
                           } ${isDimmed ? 'opacity-25' : 'opacity-100'}`}
                         >
@@ -996,8 +996,8 @@ export function ProjectGraphView({
             {/* Drawer Content */}
             <div className="p-4 overflow-y-auto space-y-4 text-xs font-mono max-h-[420px]">
               {isImpactActive && getImpactStateForFile(selectedMeta.file) && (
-                <div className="p-2.5 rounded-lg bg-[#0E120F] border border-primary/30 space-y-1.5">
-                  <div className="flex items-center justify-between text-[10px] uppercase text-primary font-semibold">
+                <div className="p-2.5 rounded-lg bg-[#111215] border border-white/15 space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] uppercase text-white font-semibold">
                     <span>Impact Role: {getImpactStateForFile(selectedMeta.file).dependencyType.replace(/_/g, ' ')}</span>
                     {getImpactStateForFile(selectedMeta.file).severity && (
                       <span>{getImpactStateForFile(selectedMeta.file).severity}</span>
